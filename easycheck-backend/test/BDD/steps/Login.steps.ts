@@ -5,6 +5,8 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AuthModule } from '../../../src/auth/Auth.module';
 import { AuthRepository } from '../../../src/auth/Auth.repository';
+import { InMemoryInstitutionalIdentityService } from '../../../src/users/infrastructure/in-memory-institutional-identity.service';
+import { UserRole } from '../../../src/users/domain/user-role.enum';
 
 const feature = loadFeature('./test/BDD/features/Login.feature');
 
@@ -19,7 +21,25 @@ interface LoginResponseBody {
 defineFeature(feature, (test) => {
   let app: INestApplication<App>;
   let repo: AuthRepository;
+  let institutional: InMemoryInstitutionalIdentityService;
   let response: request.Response;
+
+  // Siembra las credenciales institucionales con la MISMA contraseña que usa
+  // el escenario, para que la validación real de password del login pase. El
+  // .feature no cambia: el rol/correo aquí son irrelevantes para verifyPassword.
+  const seedInstitutionalCredentials = (
+    rut: string,
+    password: string,
+    role: UserRole,
+  ) => {
+    institutional.seed({
+      rut,
+      institutionalEmail: `${rut}@ufromail.cl`,
+      fullName: 'Usuario de prueba',
+      role,
+      password,
+    });
+  };
 
   // ── Setup compartido (igual que tu integration spec) ──────────────────────
   beforeAll(async () => {
@@ -30,6 +50,9 @@ defineFeature(feature, (test) => {
     app = moduleRef.createNestApplication();
     await app.init();
     repo = moduleRef.get<AuthRepository>(AuthRepository);
+    institutional = moduleRef.get<InMemoryInstitutionalIdentityService>(
+      InMemoryInstitutionalIdentityService,
+    );
   });
 
   afterAll(async () => {
@@ -38,6 +61,7 @@ defineFeature(feature, (test) => {
 
   beforeEach(() => {
     repo.reset();
+    institutional.reset();
   });
 
   // ==========================================================================
@@ -70,6 +94,8 @@ defineFeature(feature, (test) => {
 
     and(/^el usuario ingresa la contraseña "(.*)"$/, (password: string) => {
       passwordIngresada = password;
+      // Credencial institucional coherente con la contraseña del escenario.
+      seedInstitutionalCredentials(rutIngresado, password, UserRole.ESTUDIANTE);
     });
 
     and('el usuario selecciona "Entrar"', async () => {
@@ -123,6 +149,8 @@ defineFeature(feature, (test) => {
 
     and(/^el usuario ingresa la contraseña "(.*)"$/, (password: string) => {
       passwordIngresada = password;
+      // Credencial institucional coherente con la contraseña del escenario.
+      seedInstitutionalCredentials(rutIngresado, password, UserRole.PROFESOR);
     });
 
     and('el usuario selecciona "Entrar"', async () => {

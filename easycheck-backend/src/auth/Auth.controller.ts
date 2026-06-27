@@ -23,9 +23,9 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto) {
+  async login(@Body() dto: LoginDto) {
     try {
-      return this.authService.login(dto);
+      return await this.authService.login(dto);
     } catch (e) {
       if (e instanceof EmptyCredentialsException) {
         throw new BadRequestException({ message: e.message, fields: e.fields });

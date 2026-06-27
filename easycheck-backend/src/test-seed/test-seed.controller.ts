@@ -2,6 +2,9 @@ import { Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthRepository } from '../auth/Auth.repository';
 import { SubjectRepository } from '../subject/Subject.repository';
 import { DataRepository } from '../assistance/Data.repository';
+import { InMemoryInstitutionalIdentityService } from '../users/infrastructure/in-memory-institutional-identity.service';
+import { InMemoryUsersRepository } from '../users/infrastructure/in-memory-users.repository';
+import { UserRole } from '../users/domain/user-role.enum';
 
 /**
  * Endpoint EXCLUSIVO para testing/desarrollo.
@@ -22,6 +25,8 @@ export class TestSeedController {
     private readonly authRepository: AuthRepository,
     private readonly subjectRepository: SubjectRepository,
     private readonly dataRepository: DataRepository,
+    private readonly institutionalIdentity: InMemoryInstitutionalIdentityService,
+    private readonly usersRepository: InMemoryUsersRepository,
   ) {}
 
   @Post('seed')
@@ -31,12 +36,30 @@ export class TestSeedController {
     this.authRepository.reset();
     this.subjectRepository.reset();
     this.dataRepository.reset();
+    this.institutionalIdentity.reset();
 
     // ── Auth (CU-01) ────────────────────────────────────────────────────────
     // El tipo UserRole del repositorio es 'estudiante' | 'profesor' (minúscula),
     // coherente con CU-01 (redirectUrl '/<role>/home').
     this.authRepository.seedUser('12345678-9', 'estudiante', 'ACTIVE');
     this.authRepository.seedUser('98765432-1', 'profesor', 'ACTIVE');
+
+    // Credenciales institucionales (la contraseña real vive aquí, no en
+    // AuthRepository). El login valida la password contra este servicio.
+    this.institutionalIdentity.seed({
+      rut: '12345678-9',
+      institutionalEmail: 'ana.garcia@ufromail.cl',
+      fullName: 'Ana Garcia',
+      role: UserRole.ESTUDIANTE,
+      password: 'ClaveInstitucional123',
+    });
+    this.institutionalIdentity.seed({
+      rut: '98765432-1',
+      institutionalEmail: 'carlos.soto@ufromail.cl',
+      fullName: 'Carlos Soto',
+      role: UserRole.PROFESOR,
+      password: 'ClaveInstitucional123',
+    });
 
     // ── Subject (CU-09) ──────────────────────────────────────────────────────
     void this.subjectRepository.save({
@@ -63,6 +86,10 @@ export class TestSeedController {
           { rut: '12345678-9', role: 'estudiante', status: 'ACTIVE' },
           { rut: '98765432-1', role: 'profesor', status: 'ACTIVE' },
         ],
+        institutional: [
+          { rut: '12345678-9', password: 'ClaveInstitucional123' },
+          { rut: '98765432-1', password: 'ClaveInstitucional123' },
+        ],
         subjects: [{ code: 'MAT101', name: 'Cálculo', career: 'Ingeniería Civil' }],
         assistance: {
           student: '12345678-9',
@@ -72,5 +99,21 @@ export class TestSeedController {
         },
       },
     };
+  }
+
+  /**
+   * Deja todos los repositorios in-memory vacíos, sin sembrar nada. Útil para
+   * aislar pruebas E2E que necesitan partir de un estado limpio.
+   */
+  @Post('reset')
+  @HttpCode(HttpStatus.OK)
+  reset() {
+    this.authRepository.reset();
+    this.subjectRepository.reset();
+    this.dataRepository.reset();
+    this.institutionalIdentity.reset();
+    this.usersRepository.reset();
+
+    return { message: 'Reset completado' };
   }
 }

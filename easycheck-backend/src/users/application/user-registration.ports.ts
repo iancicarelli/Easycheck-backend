@@ -10,6 +10,14 @@ export interface InstitutionalIdentityPort {
   validateInstitutionalUser(
     params: ValidateInstitutionalUserParams,
   ): Promise<InstitutionalUser | null>;
+
+  /**
+   * Verifica que la contraseña institucional corresponda al RUT dado.
+   * Usado por el login (CU-01), que sólo dispone de { rut, password } y no
+   * del correo institucional. Devuelve false si el RUT no existe o la
+   * contraseña no coincide.
+   */
+  verifyPassword(rut: string, password: string): Promise<boolean>;
 }
 
 export interface UsersRepositoryPort {

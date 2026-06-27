@@ -20,7 +20,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:integration": "jest --config ./test/jest-integration.json",
     "test:bdd": "jest --config ./test/jest-bdd.json",
-    "test:tdd": "jest --config ./test/jest-tdd.json"
+    "test:tdd": "jest --config ./test/jest-tdd.json",
+    "test:e2e:cypress": "cypress run",
+    "test:e2e:cypress:open": "cypress open"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

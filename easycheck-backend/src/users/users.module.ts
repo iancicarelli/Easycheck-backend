@@ -27,6 +27,9 @@ import { UsersController } from './users.controller';
     RegisterUserService,
     InMemoryInstitutionalIdentityService,
     InMemoryUsersRepository,
+    // Exportado para que AuthModule (login, CU-01) pueda inyectar el puerto y
+    // delegar la verificación de contraseña institucional.
+    INSTITUTIONAL_IDENTITY_PORT,
   ],
 })
 export class UsersModule {}

@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AuthRepository, UserRole } from './Auth.repository';
+import { INSTITUTIONAL_IDENTITY_PORT } from '../users/application/user-registration.ports';
+import type { InstitutionalIdentityPort } from '../users/application/user-registration.ports';
 import {
   EmptyCredentialsException,
   InvalidRutFormatException,
@@ -22,9 +24,13 @@ const RUT_WITH_CHECK_DIGIT = /^\d{7,8}-[\dkK]$/;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly authRepository: AuthRepository) {}
+  constructor(
+    private readonly authRepository: AuthRepository,
+    @Inject(INSTITUTIONAL_IDENTITY_PORT)
+    private readonly institutionalIdentity: InstitutionalIdentityPort,
+  ) {}
 
-  login(dto: LoginDto): LoginResult {
+  async login(dto: LoginDto): Promise<LoginResult> {
     const rut = dto?.rut ?? '';
     const password = dto?.password ?? '';
 
@@ -37,6 +43,17 @@ export class AuthService {
     }
     if (user.status === 'DISABLED') {
       throw new AccountDisabledException(rut);
+    }
+
+    // Validación real de contraseña delegada al sistema institucional (CU-01).
+    // AuthRepository sólo conoce { rut, role, status }; las credenciales viven
+    // en InMemoryInstitutionalIdentityService.
+    const passwordValid = await this.institutionalIdentity.verifyPassword(
+      rut,
+      password,
+    );
+    if (!passwordValid) {
+      throw new InvalidCredentialsException();
     }
 
     return {

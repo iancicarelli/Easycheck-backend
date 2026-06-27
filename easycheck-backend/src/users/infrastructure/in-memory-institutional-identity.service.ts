@@ -51,4 +51,9 @@ export class InMemoryInstitutionalIdentityService implements InstitutionalIdenti
       role: user.role,
     });
   }
+
+  verifyPassword(rut: string, password: string): Promise<boolean> {
+    const user = this.users.get(rut);
+    return Promise.resolve(!!user && user.password === password);
+  }
 }

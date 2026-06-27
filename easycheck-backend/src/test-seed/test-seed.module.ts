@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/Auth.module';
 import { SubjectModule } from '../subject/Subject.module';
 import { AssistanceModule } from '../assistance/Assistance.module';
+import { UsersModule } from '../users/users.module';
 import { TestSeedController } from './test-seed.controller';
 
 /**
@@ -11,7 +12,7 @@ import { TestSeedController } from './test-seed.controller';
  * (ver app.module.ts).
  */
 @Module({
-  imports: [AuthModule, SubjectModule, AssistanceModule],
+  imports: [AuthModule, SubjectModule, AssistanceModule, UsersModule],
   controllers: [TestSeedController],
 })
 export class TestSeedModule {}
