@@ -10,6 +10,10 @@ export interface Subject {
 export class SubjectRepository {
   private readonly subjects: Subject[] = [];
 
+  reset(): void {
+    this.subjects.length = 0;
+  }
+
   findByCode(code: string): Promise<Subject | null> {
     return Promise.resolve(this.subjects.find((s) => s.code === code) ?? null);
   }

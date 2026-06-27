@@ -6,5 +6,6 @@ import { DataRepository } from './Data.repository';
 @Module({
   controllers: [AssistanceController],
   providers: [AssistanceService, DataRepository],
+  exports: [DataRepository],
 })
 export class AssistanceModule {}

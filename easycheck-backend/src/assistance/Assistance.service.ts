@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import {
   DataRepository,
   StudentAssistance,
@@ -23,9 +24,19 @@ export interface StudentAssistanceDto {
 }
 
 export class RegisterAssistanceDto {
+  @IsString()
+  @IsNotEmpty()
   studentRut!: string;
+
+  @IsNumber()
   classId!: number;
+
+  @IsString()
+  @IsNotEmpty()
   subjectId!: string;
+
+  @IsString()
+  @IsNotEmpty()
   qrSignature!: string;
 }
 
