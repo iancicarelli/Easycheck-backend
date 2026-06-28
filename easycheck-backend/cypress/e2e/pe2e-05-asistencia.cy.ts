@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
-// PE2E-04 — Registro y consulta de asistencia (CU-03 + CU-05)
-describe('PE2E-04 Asistencia (CU-03 + CU-05)', () => {
+// PE2E-05 — Registro y consulta de asistencia (CU-03 + CU-05)
+describe('PE2E-05 Asistencia (CU-03 + CU-05)', () => {
   const REGISTER_URL = '/api/v1/assistance/register';
 
   const validAssistance = {

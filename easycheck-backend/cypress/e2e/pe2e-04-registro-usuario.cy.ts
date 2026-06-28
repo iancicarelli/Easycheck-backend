@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
-// PE2E-03 — Registro de nuevo usuario (CU-02)
-describe('PE2E-03 Registro de usuario (CU-02)', () => {
+// PE2E-04 — Registro de nuevo usuario (CU-02)
+describe('PE2E-04 Registro de usuario (CU-02)', () => {
   const REGISTER_URL = '/api/v1/users/register';
 
   const validStudent = {
