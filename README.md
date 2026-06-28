@@ -180,3 +180,5 @@ npm run test:e2e:cypress:open   # interfaz gráfica de Cypress
 
 Resultado esperado: **5 specs, 23 pruebas en verde**. Los videos de cada corrida
 quedan en `cypress/videos/`.
+
+a
