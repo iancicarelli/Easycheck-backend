@@ -39,6 +39,12 @@ export class DataRepository {
   private teachings: { professorRut: string; subjectId: string }[] = [];
   private students: { rut: string; name: string }[] = [];
 
+  constructor() {
+    if (process.env.EASYCHECK_PERFORMANCE_SEED === 'true') {
+      this.seedPerformanceFixtures();
+    }
+  }
+
   // ── seed helpers (used by the test fixtures) ──────────────────────────────
   seedStudent(rut: string, name: string) {
     this.students.push({ rut, name });
@@ -61,6 +67,20 @@ export class DataRepository {
     this.enrollments = [];
     this.teachings = [];
     this.students = [];
+  }
+
+  private seedPerformanceFixtures() {
+    this.seedStudent('12345678-9', 'Ana Garcia');
+    this.seedEnrollment('12345678-9', 'ASG-01');
+
+    for (let classId = 1; classId <= 50000; classId++) {
+      this.seedClass({
+        id: classId,
+        subjectId: 'ASG-01',
+        date: new Date(),
+        registrationStatus: 'ENABLED',
+      });
+    }
   }
 
   findStudent(rut: string): Promise<{ rut: string; name: string } | null> {
