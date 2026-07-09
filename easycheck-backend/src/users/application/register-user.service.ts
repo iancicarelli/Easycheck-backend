@@ -29,44 +29,51 @@ export class RegisterUserService {
   ) {}
 
   async execute(command: RegisterUserDto): Promise<User> {
-    if (!command.rut?.trim()) {
+    const rut = command.rut?.trim() ?? '';
+    const institutionalEmail = command.institutionalEmail?.trim() ?? '';
+    const institutionalPassword = command.institutionalPassword ?? '';
+    const requestedRole = command.role;
+
+    if (!rut) {
       throw new RutRequiredError();
     }
 
-    if (!/^\d{7,8}-[\dkK]$/.test(command.rut)) {
-      throw new InvalidRutFormatError(command.rut);
+    if (!/^\d{7,8}-[\dkK]$/.test(rut)) {
+      throw new InvalidRutFormatError(rut);
     }
 
-    if (!Object.values(UserRole).includes(command.role)) {
-      throw new RoleNotAllowedError(command.role);
+    if (!Object.values(UserRole).includes(requestedRole)) {
+      throw new RoleNotAllowedError(requestedRole);
     }
 
     const institutionalUser =
       await this.institutionalIdentity.validateInstitutionalUser({
-        rut: command.rut,
-        institutionalEmail: command.institutionalEmail,
-        institutionalPassword: command.institutionalPassword,
+        rut,
+        institutionalEmail,
+        institutionalPassword,
       });
 
     if (!institutionalUser) {
-      if (!command.institutionalEmail.endsWith('@ufromail.cl')) {
+      if (!institutionalEmail.endsWith('@ufromail.cl')) {
         throw new InvalidInstitutionalCredentialsError();
       }
-      throw new InstitutionalUserNotFoundError(command.rut);
+      throw new InstitutionalUserNotFoundError(rut);
     }
 
-    const alreadyRegistered = await this.usersRepository.existsByRut(
-      command.rut,
-    );
+    if (institutionalUser.role !== requestedRole) {
+      throw new RoleNotAllowedError(requestedRole);
+    }
+
+    const alreadyRegistered = await this.usersRepository.existsByRut(rut);
     if (alreadyRegistered) {
-      throw new UserAlreadyRegisteredError(command.rut);
+      throw new UserAlreadyRegisteredError(rut);
     }
 
     return this.usersRepository.save({
       rut: institutionalUser.rut,
       institutionalEmail: institutionalUser.institutionalEmail,
       fullName: command.fullName || institutionalUser.fullName,
-      role: command.role,
+      role: institutionalUser.role,
     });
   }
 }

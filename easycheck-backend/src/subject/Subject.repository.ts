@@ -1,21 +1,2 @@
-import { Injectable } from '@nestjs/common';
-
-export interface Subject {
-  code: string;
-  name: string;
-  career: string;
-}
-
-@Injectable()
-export class SubjectRepository {
-  private readonly subjects: Subject[] = [];
-
-  findByCode(code: string): Promise<Subject | null> {
-    return Promise.resolve(this.subjects.find((s) => s.code === code) ?? null);
-  }
-
-  save(subject: Subject): Promise<Subject> {
-    this.subjects.push(subject);
-    return Promise.resolve(subject);
-  }
-}
+export { SubjectRepository } from './infrastructure/in-memory-subject.repository';
+export type { Subject } from './domain/subject.types';

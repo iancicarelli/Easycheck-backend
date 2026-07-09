@@ -1,75 +1,41 @@
 import { Injectable } from '@nestjs/common';
-import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
-import {
-  DataRepository,
-  StudentAssistance,
-  AssistanceRecord,
-  StudentSubjectAttendance,
-} from './Data.repository';
+import { DataRepository, StudentAssistance } from './Data.repository';
 import {
   StudentNotFoundException,
+  InvalidStudentRutException,
+  StudentAttendanceNotFoundException,
   SubjectNotAssignedException,
+  ClassNotFoundException,
   RegistrationDisabledException,
   DuplicateAssistanceException,
   InvalidQRException,
-} from '../common/exceptions';
-
-export interface StudentAssistanceDto {
-  studentRut: string;
-  subjectId: string;
-  records: AssistanceRecord[];
-  totalClasses: number;
-  classesAttended: number;
-  assistancePercentage: number;
-}
-
-export class RegisterAssistanceDto {
-  @IsString()
-  @IsNotEmpty()
-  studentRut!: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  classId!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  subjectId!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  qrSignature!: string;
-}
-
-export interface AssistanceConfirmationDto {
-  message: string;
-  recordId: number;
-  studentRut: string;
-  classId: number;
-}
-
-export interface StudentSubjectAttendanceDto extends StudentSubjectAttendance {
-  attendancePercentage: number;
-}
+} from './domain/assistance.errors';
+import {
+  AssistanceConfirmationDto,
+  AssistanceQrDto,
+  StudentAssistanceDto,
+  StudentSubjectAttendanceDto,
+} from './domain/assistance.types';
+import { RegisterAssistanceDto } from './dto/register-assistance.dto';
+import { QrService } from './application/qr.service';
 
 @Injectable()
 export class AssistanceService {
-  constructor(private readonly dataRepository: DataRepository) {}
+  constructor(
+    private readonly dataRepository: DataRepository,
+    private readonly qrService: QrService = new QrService(),
+  ) {}
 
   async getStudentAttendanceByRut(
     rut: string,
   ): Promise<StudentSubjectAttendanceDto[]> {
     if (!this.isValidRut(rut)) {
-      throw new Error(
-        'El RUT ingresado no es válido. Ingrese el RUT nuevamente.',
-      );
+      throw new InvalidStudentRutException();
     }
 
     const student = await this.dataRepository.findStudent(rut);
     if (!student) {
-      throw new Error('El estudiante ingresado no existe');
+      throw new StudentAttendanceNotFoundException(rut);
     }
 
     const attendanceRows =
@@ -86,29 +52,9 @@ export class AssistanceService {
 
   private isValidRut(rut: string): boolean {
     const cleanRut = rut.replaceAll('.', '').toUpperCase();
-    const match = /^(\d{7,8})-([\dK])$/.exec(cleanRut);
-
-    if (!match) {
-      return false;
-    }
-
-    const [, body, verifier] = match;
-    let multiplier = 2;
-    let sum = 0;
-
-    for (let i = body.length - 1; i >= 0; i--) {
-      sum += Number(body[i]) * multiplier;
-      multiplier = multiplier === 7 ? 2 : multiplier + 1;
-    }
-
-    const expectedValue = 11 - (sum % 11);
-    const verifierIfNotEleven = expectedValue === 10 ? 'K' : `${expectedValue}`;
-    const expectedVerifier = expectedValue === 11 ? '0' : verifierIfNotEleven;
-
-    return verifier === expectedVerifier;
+    return /^\d{7,8}-[\dK]$/.test(cleanRut);
   }
 
-  // ── IT-1 / IT-2: Show a student's assistance ─────────────────────────────
   async getStudentAssistance(
     studentRut: string,
     subjectId: string,
@@ -139,18 +85,54 @@ export class AssistanceService {
     };
   }
 
-  // ── IT-3 / IT-4: Register assistance via QR ──────────────────────────────
+  async generateAssistanceQR(
+    professorRut: string,
+    subjectId: string,
+    classId: number,
+  ): Promise<AssistanceQrDto> {
+    const teaches = await this.dataRepository.findTeaching(
+      professorRut,
+      subjectId,
+    );
+    if (!teaches) {
+      throw new SubjectNotAssignedException(professorRut, subjectId);
+    }
+
+    const classSession = await this.dataRepository.findClass(classId);
+    if (!classSession) {
+      throw new ClassNotFoundException(classId);
+    }
+    if (classSession.subjectId !== subjectId) {
+      throw new InvalidQRException('Class does not belong to subject');
+    }
+
+    return {
+      qrSignature: this.qrService.generate({
+        professorRut,
+        subjectId,
+        classId,
+      }),
+      subjectId,
+      classId,
+    };
+  }
+
   async registerAssistanceQR(
     dto: RegisterAssistanceDto,
   ): Promise<AssistanceConfirmationDto> {
-    // Validate QR signature (simplified stub: any non-empty signature is valid)
-    if (!dto.qrSignature || dto.qrSignature === 'INVALID_SIGNATURE') {
+    if (
+      !dto.qrSignature ||
+      !this.qrService.matches(dto.qrSignature, {
+        subjectId: dto.subjectId,
+        classId: dto.classId,
+      })
+    ) {
       throw new InvalidQRException();
     }
 
     const classSession = await this.dataRepository.findClass(dto.classId);
     if (!classSession) {
-      throw new Error(`Class ${dto.classId} not found`);
+      throw new ClassNotFoundException(dto.classId);
     }
 
     if (classSession.registrationStatus === 'DISABLED') {
@@ -181,7 +163,6 @@ export class AssistanceService {
     };
   }
 
-  // ── IT-5 / IT-6: Show assistance of students in a subject ────────────────
   async getStudentsAssistanceBySubject(
     professorRut: string,
     subjectId: string,

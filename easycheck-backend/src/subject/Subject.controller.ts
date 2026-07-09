@@ -8,15 +8,14 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { SubjectService } from './Subject.service';
-import type { CreateSubjectDto } from './Subject.service';
-import { Subject } from './Subject.repository';
+import { SubjectService } from './application/create-subject.service';
+import type { CreateSubjectDto, Subject } from './domain/subject.types';
 import { AdminGuard } from './Admin.guard';
 import {
   MissingFieldsException,
   InvalidFieldFormatException,
   SubjectAlreadyExistsException,
-} from '../common/exceptions';
+} from './domain/subject.errors';
 
 @Controller('api/v1/subjects')
 export class SubjectController {

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { buildUfromailEmail } from '../../common/ufromail';
 import { InstitutionalUser } from '../domain/user.entity';
 import { UserRole } from '../domain/user-role.enum';
 import {
@@ -10,6 +11,12 @@ interface InstitutionalUserRecord extends InstitutionalUser {
   password: string;
 }
 
+interface SeedInstitutionalUserRecord
+  extends Omit<InstitutionalUser, 'institutionalEmail'> {
+  institutionalEmail?: string;
+  password: string;
+}
+
 @Injectable()
 export class InMemoryInstitutionalIdentityService implements InstitutionalIdentityPort {
   private users = new Map<string, InstitutionalUserRecord>();
@@ -17,15 +24,19 @@ export class InMemoryInstitutionalIdentityService implements InstitutionalIdenti
   constructor() {
     this.seed({
       rut: '12345678-9',
-      institutionalEmail: 'ana.garcia@ufromail.cl',
       fullName: 'Ana Garcia',
       role: UserRole.ESTUDIANTE,
       password: 'ClaveInstitucional123',
     });
   }
 
-  seed(user: InstitutionalUserRecord): void {
-    this.users.set(user.rut, user);
+  seed(user: SeedInstitutionalUserRecord): void {
+    const institutionalEmail =
+      user.institutionalEmail ?? this.nextInstitutionalEmail(user.fullName);
+    this.users.set(user.rut, {
+      ...user,
+      institutionalEmail,
+    });
   }
 
   reset(): void {
@@ -50,5 +61,12 @@ export class InMemoryInstitutionalIdentityService implements InstitutionalIdenti
       fullName: user.fullName,
       role: user.role,
     });
+  }
+
+  private nextInstitutionalEmail(fullName: string): string {
+    return buildUfromailEmail(
+      fullName,
+      Array.from(this.users.values()).map((user) => user.institutionalEmail),
+    );
   }
 }

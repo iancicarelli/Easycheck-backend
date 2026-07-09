@@ -8,14 +8,14 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService } from './Auth.service';
-import type { LoginDto } from './Auth.service';
+import { AuthService } from './application/login.service';
+import type { LoginDto } from './domain/auth.types';
 import {
   EmptyCredentialsException,
   InvalidRutFormatException,
   AccountDisabledException,
   InvalidCredentialsException,
-} from '../common/exceptions';
+} from './domain/auth.errors';
 
 @Controller('api/v1/auth')
 export class AuthController {

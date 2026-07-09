@@ -1,4 +1,8 @@
 import { AssistanceService } from '../../src/assistance/Assistance.service';
+import {
+  InvalidStudentRutException,
+  StudentAttendanceNotFoundException,
+} from '../../src/assistance/domain/assistance.errors';
 
 interface StudentSubjectAttendance {
   subjectName: string;
@@ -11,7 +15,7 @@ interface Cu03AssistanceService {
   getStudentAttendanceByRut(rut: string): Promise<StudentSubjectAttendance[]>;
 }
 
-describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
+describe('CU-03 Mostrar asistencia por estudiante para admin/director', () => {
   let service: AssistanceService & Cu03AssistanceService;
   let repository: {
     findStudent: jest.Mock;
@@ -30,9 +34,7 @@ describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
   it('TC-CU03-01: rechaza la consulta cuando el RUT ingresado no es valido', async () => {
     await expect(
       service.getStudentAttendanceByRut('rut-invalido'),
-    ).rejects.toThrow(
-      'El RUT ingresado no es válido. Ingrese el RUT nuevamente.',
-    );
+    ).rejects.toThrow(InvalidStudentRutException);
   });
 
   it('TC-CU03-02: muestra la asistencia del estudiante en sus asignaturas inscritas', async () => {
@@ -42,7 +44,7 @@ describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
     });
     repository.findStudentAttendanceByRut.mockResolvedValue([
       {
-        subjectName: 'Ingeniería de Software',
+        subjectName: 'Ingenieria de Software',
         attendedClasses: 8,
         totalClasses: 10,
       },
@@ -52,7 +54,7 @@ describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
 
     expect(result).toEqual([
       {
-        subjectName: 'Ingeniería de Software',
+        subjectName: 'Ingenieria de Software',
         attendedClasses: 8,
         totalClasses: 10,
         attendancePercentage: 80,
@@ -65,7 +67,7 @@ describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
 
     await expect(
       service.getStudentAttendanceByRut('12345678-5'),
-    ).rejects.toThrow('El estudiante ingresado no existe');
+    ).rejects.toThrow(StudentAttendanceNotFoundException);
   });
 
   it('TC-CU03-04: retorna porcentaje 0 cuando una asignatura no tiene clases registradas', async () => {
@@ -75,7 +77,7 @@ describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
     });
     repository.findStudentAttendanceByRut.mockResolvedValue([
       {
-        subjectName: 'Ingeniería de Software',
+        subjectName: 'Ingenieria de Software',
         attendedClasses: 0,
         totalClasses: 0,
       },
@@ -85,7 +87,7 @@ describe('CU-03 Mostrar asistencia por estudiantes (TDD)', () => {
 
     expect(result).toEqual([
       {
-        subjectName: 'Ingeniería de Software',
+        subjectName: 'Ingenieria de Software',
         attendedClasses: 0,
         totalClasses: 0,
         attendancePercentage: 0,

@@ -1,4 +1,4 @@
-# Easycheck-backend
+﻿# Easycheck-backend
 Backend para easycheck creado con Nest
 
 ### 1. Instalar dependencias
@@ -23,28 +23,57 @@ npm run test
 ```
 
 ## Test
+
+Ejecutar desde la carpeta del backend:
+
 ```bash
-
-Integracion 
-npm run test:integration
-
-BDD
-npm run test:bdd
+cd easycheck-backend
 ```
 
+Suite completa:
 
-## Escenarios 
+```bash
+npm test -- --runInBand
+```
 
-1. CU-01 BDD Pasar a Nest / Pruebas de Humo / Ian
-2. CU-02 BDD Fran
-3. CU-03 TDD Fran
-4. CU-04 Pruebas de Humo / Hacer pruebas unitarias Ian 
-5. CU-05 Pruebas de Humo / Hacer pruebas unitarias Fran
-6. CU-06 Pruebas de Humo / Hacer pruebas unitarias
-7. CU-07 Hacer pruebas unitarias
-8. CU-08 Hacer pruebas unitarias
-9. CU-09 TDD /Ian
+Tests por tipo:
 
+```bash
+npm run test:tdd -- --runInBand
+npm run test:integration -- --runInBand
+npm run test:bdd -- --runInBand
+npm run test:e2e -- --runInBand
+```
+
+Cobertura y build:
+
+```bash
+npm run test:cov -- --runInBand
+npm run build
+```
+## Escenarios
+
+Estado actual de casos de uso:
+
+1. CU-01: listo / faltan pruebas E2E y evidencia final.
+2. CU-02: listo / faltan pruebas E2E y evidencia final.
+3. CU-03: listo / faltan pruebas BDD, E2E y evidencia final.
+4. CU-04: listo / faltan pruebas BDD, E2E y revisar filtro por asignatura.
+5. CU-05: listo / faltan pruebas BDD, E2E y decidir export PDF/CSV.
+6. CU-06: listo con QR simulado / faltan pruebas BDD, E2E y confirmar alineacion profesor/estudiante genera QR.
+7. CU-07: falta implementar / faltan pruebas unitarias, integracion, BDD y E2E.
+8. CU-08: falta implementar / faltan pruebas unitarias, integracion, BDD y E2E.
+9. CU-08 bis: falta definir alcance antes de implementar.
+10. CU-09: listo / faltan pruebas BDD, E2E y evidencia final.
+11. API Intranet simulada/sync: listo / falta evidencia E2E si se considera API relevante.
+
+Pendiente transversal para Avance 03:
+
+- Completar escenarios BDD definidos y automatizarlos.
+- Agregar E2E para los CU priorizados.
+- Ampliar pruebas k6 a APIs relevantes y guardar evidencias para Grafana.
+- Ejecutar SonarQube y guardar metricas/capturas.
+- Actualizar informe con trazabilidad CU -> modulo -> endpoint -> pruebas.
 ## Foro 8 SonarQube
 
 Pruebas2026@
@@ -78,9 +107,9 @@ npm run test:cov
 ```
 4. Correr el scanner con su propio token
 
-La configuración vive en `easycheck-backend/sonar-project.properties` (sources,
+La configuraciÃ³n vive en `easycheck-backend/sonar-project.properties` (sources,
 tests y la ruta del lcov combinado). Por eso el scanner se ejecuta **desde
-`easycheck-backend/`** y sólo hace falta pasarle el host y el token:
+`easycheck-backend/`** y sÃ³lo hace falta pasarle el host y el token:
 
 ```bash
 cd ~/ruta/del/proyecto/Easycheck-backend/easycheck-backend
@@ -111,3 +140,4 @@ docker run \
   -Dsonar.host.url=http://sonarqube:9000 \
   -Dsonar.token=sqp_508efdee148448400f630e9f737e2b95581e3d59 
   ```
+

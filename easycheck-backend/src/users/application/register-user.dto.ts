@@ -14,7 +14,7 @@ export class RegisterUserDto {
   @Matches(/^\d{7,8}-[\dkK]$/)
   rut!: string;
 
-  @ApiProperty({ example: 'ana.garcia@ufromail.cl' })
+  @ApiProperty({ example: 'a.garcia01@ufromail.cl' })
   @IsEmail()
   institutionalEmail!: string;
 

@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { InMemoryAcademicRepository } from './infrastructure/in-memory-academic.repository';
+import { InMemoryAttendanceRepository } from './infrastructure/in-memory-attendance.repository';
 
 export interface AssistanceRecord {
   id: number;
@@ -32,12 +34,8 @@ export interface StudentSubjectAttendance {
 
 @Injectable()
 export class DataRepository {
-  // Level 1 — in-memory stores (replace the real DB in tests)
-  private assistances: AssistanceRecord[] = [];
-  private classes: ClassSession[] = [];
-  private enrollments: { studentRut: string; subjectId: string }[] = [];
-  private teachings: { professorRut: string; subjectId: string }[] = [];
-  private students: { rut: string; name: string }[] = [];
+  private readonly academicRepository = new InMemoryAcademicRepository();
+  private readonly attendanceRepository = new InMemoryAttendanceRepository();
 
   constructor() {
     if (process.env.EASYCHECK_PERFORMANCE_SEED === 'true') {
@@ -45,31 +43,151 @@ export class DataRepository {
     }
   }
 
-  // ── seed helpers (used by the test fixtures) ──────────────────────────────
-  seedStudent(rut: string, name: string) {
-    this.students.push({ rut, name });
-  }
-  seedEnrollment(studentRut: string, subjectId: string) {
-    this.enrollments.push({ studentRut, subjectId });
-  }
-  seedClass(classSession: ClassSession) {
-    this.classes.push(classSession);
-  }
-  seedAssistance(record: AssistanceRecord) {
-    this.assistances.push(record);
-  }
-  seedTeaching(professorRut: string, subjectId: string) {
-    this.teachings.push({ professorRut, subjectId });
-  }
-  reset() {
-    this.assistances = [];
-    this.classes = [];
-    this.enrollments = [];
-    this.teachings = [];
-    this.students = [];
+  seedStudent(rut: string, name: string): void {
+    this.academicRepository.seedStudent(rut, name);
   }
 
-  private seedPerformanceFixtures() {
+  seedEnrollment(studentRut: string, subjectId: string): void {
+    this.academicRepository.seedEnrollment(studentRut, subjectId);
+  }
+
+  seedSubject(subject: { code: string; name: string }): void {
+    this.academicRepository.seedSubject(subject);
+  }
+
+  seedClass(classSession: ClassSession): void {
+    this.academicRepository.seedClass(classSession);
+  }
+
+  seedAssistance(record: AssistanceRecord): void {
+    this.attendanceRepository.seedAssistance(record);
+  }
+
+  seedTeaching(professorRut: string, subjectId: string): void {
+    this.academicRepository.seedTeaching(professorRut, subjectId);
+  }
+
+  reset(): void {
+    this.academicRepository.reset();
+    this.attendanceRepository.reset();
+  }
+
+  findStudent(rut: string): Promise<{ rut: string; name: string } | null> {
+    return Promise.resolve(this.academicRepository.findStudent(rut));
+  }
+
+  countStudents(): number {
+    return this.academicRepository.countStudents();
+  }
+
+  countEnrollments(): number {
+    return this.academicRepository.countEnrollments();
+  }
+
+  countClasses(): number {
+    return this.academicRepository.countClasses();
+  }
+
+  countTeachings(): number {
+    return this.academicRepository.countTeachings();
+  }
+
+  findAssistancesByStudentAndSubject(
+    studentRut: string,
+    subjectId: string,
+  ): Promise<AssistanceRecord[]> {
+    return Promise.resolve(
+      this.attendanceRepository.findAssistancesByStudentAndSubject(
+        studentRut,
+        subjectId,
+      ),
+    );
+  }
+
+  findStudentAttendanceByRut(
+    studentRut: string,
+  ): Promise<StudentSubjectAttendance[]> {
+    const enrolled =
+      this.academicRepository.findEnrollmentsByStudent(studentRut);
+
+    return Promise.resolve(
+      enrolled.map((enrollment) => {
+        const subjectClasses = this.academicRepository.findClassesBySubject(
+          enrollment.subjectId,
+        );
+        const attendedClasses =
+          this.attendanceRepository.countPresentByStudentAndSubject(
+            studentRut,
+            enrollment.subjectId,
+          );
+
+        return {
+          subjectName: this.academicRepository.findSubjectName(
+            enrollment.subjectId,
+          ),
+          attendedClasses,
+          totalClasses: subjectClasses.length,
+        };
+      }),
+    );
+  }
+
+  findClass(classId: number): Promise<ClassSession | null> {
+    return Promise.resolve(this.academicRepository.findClass(classId));
+  }
+
+  assistanceExists(studentRut: string, classId: number): Promise<boolean> {
+    return Promise.resolve(
+      this.attendanceRepository.assistanceExists(studentRut, classId),
+    );
+  }
+
+  insertAssistance(
+    record: Omit<AssistanceRecord, 'id'>,
+  ): Promise<AssistanceRecord> {
+    return Promise.resolve(this.attendanceRepository.insertAssistance(record));
+  }
+
+  findTeaching(professorRut: string, subjectId: string): Promise<boolean> {
+    return Promise.resolve(
+      this.academicRepository.findTeaching(professorRut, subjectId),
+    );
+  }
+
+  findStudentsAssistanceBySubject(
+    subjectId: string,
+  ): Promise<StudentAssistance[]> {
+    const enrolled = this.academicRepository.findEnrollmentsBySubject(subjectId);
+    const subjectClasses = this.academicRepository.findClassesBySubject(subjectId);
+    const totalClasses = subjectClasses.length;
+
+    return Promise.resolve(
+      enrolled.map((enrollment) => {
+        const student = this.academicRepository.findStudent(
+          enrollment.studentRut,
+        );
+        const classesAttended =
+          this.attendanceRepository.countPresentByStudentAndSubject(
+            enrollment.studentRut,
+            subjectId,
+          );
+        const assistancePercentage =
+          totalClasses > 0
+            ? Math.round((classesAttended / totalClasses) * 100)
+            : 0;
+
+        return {
+          rut: enrollment.studentRut,
+          name: student?.name ?? 'Unknown',
+          classesAttended,
+          totalClasses,
+          assistancePercentage,
+        };
+      }),
+    );
+  }
+
+  private seedPerformanceFixtures(): void {
     this.seedStudent('12345678-9', 'Ana Garcia');
     this.seedEnrollment('12345678-9', 'ASG-01');
 
@@ -81,109 +199,5 @@ export class DataRepository {
         registrationStatus: 'ENABLED',
       });
     }
-  }
-
-  findStudent(rut: string): Promise<{ rut: string; name: string } | null> {
-    return Promise.resolve(this.students.find((s) => s.rut === rut) ?? null);
-  }
-
-  findAssistancesByStudentAndSubject(
-    studentRut: string,
-    subjectId: string,
-  ): Promise<AssistanceRecord[]> {
-    return Promise.resolve(
-      this.assistances.filter(
-        (a) => a.studentRut === studentRut && a.subjectId === subjectId,
-      ),
-    );
-  }
-
-  findStudentAttendanceByRut(
-    studentRut: string,
-  ): Promise<StudentSubjectAttendance[]> {
-    const enrolled = this.enrollments.filter(
-      (e) => e.studentRut === studentRut,
-    );
-
-    return Promise.resolve(
-      enrolled.map((e) => {
-        const subjectClasses = this.classes.filter(
-          (c) => c.subjectId === e.subjectId,
-        );
-        const attendedClasses = this.assistances.filter(
-          (a) =>
-            a.studentRut === studentRut &&
-            a.subjectId === e.subjectId &&
-            a.present,
-        ).length;
-
-        return {
-          subjectName: e.subjectId,
-          attendedClasses,
-          totalClasses: subjectClasses.length,
-        };
-      }),
-    );
-  }
-
-  findClass(classId: number): Promise<ClassSession | null> {
-    return Promise.resolve(this.classes.find((c) => c.id === classId) ?? null);
-  }
-
-  assistanceExists(studentRut: string, classId: number): Promise<boolean> {
-    return Promise.resolve(
-      this.assistances.some(
-        (a) => a.studentRut === studentRut && a.classId === classId,
-      ),
-    );
-  }
-
-  insertAssistance(
-    record: Omit<AssistanceRecord, 'id'>,
-  ): Promise<AssistanceRecord> {
-    const created: AssistanceRecord = { id: Date.now(), ...record };
-    this.assistances.push(created);
-    return Promise.resolve(created);
-  }
-
-  findTeaching(professorRut: string, subjectId: string): Promise<boolean> {
-    return Promise.resolve(
-      this.teachings.some(
-        (t) => t.professorRut === professorRut && t.subjectId === subjectId,
-      ),
-    );
-  }
-
-  findStudentsAssistanceBySubject(
-    subjectId: string,
-  ): Promise<StudentAssistance[]> {
-    const enrolled = this.enrollments.filter((e) => e.subjectId === subjectId);
-    const subjectClasses = this.classes.filter(
-      (c) => c.subjectId === subjectId,
-    );
-    const totalClasses = subjectClasses.length;
-
-    return Promise.resolve(
-      enrolled.map((e) => {
-        const student = this.students.find((s) => s.rut === e.studentRut);
-        const classesAttended = this.assistances.filter(
-          (a) =>
-            a.studentRut === e.studentRut &&
-            a.subjectId === subjectId &&
-            a.present,
-        ).length;
-        const percentage =
-          totalClasses > 0
-            ? Math.round((classesAttended / totalClasses) * 100)
-            : 0;
-        return {
-          rut: e.studentRut,
-          name: student?.name ?? 'Unknown',
-          classesAttended,
-          totalClasses,
-          assistancePercentage: percentage,
-        };
-      }),
-    );
   }
 }

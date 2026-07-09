@@ -53,7 +53,7 @@ defineFeature(feature, (test) => {
     rut,
     institutionalEmail:
       credentialMode === 'validas'
-        ? 'ana.garcia@ufromail.cl'
+        ? 'a.garcia01@ufromail.cl'
         : 'ana.garcia@gmail.com',
     institutionalPassword:
       credentialMode === 'validas'
@@ -66,7 +66,6 @@ defineFeature(feature, (test) => {
   const seedInstitutionalUser = (rut: string) => {
     institutionalIdentity.seed({
       rut,
-      institutionalEmail: 'ana.garcia@ufromail.cl',
       fullName: 'Ana Garcia',
       role: UserRole.ESTUDIANTE,
       password: 'ClaveInstitucional123',
@@ -113,7 +112,7 @@ defineFeature(feature, (test) => {
       async (rut: string) => {
         await usersRepository.save({
           rut,
-          institutionalEmail: 'ana.garcia@ufromail.cl',
+          institutionalEmail: 'a.garcia01@ufromail.cl',
           fullName: 'Ana Garcia',
           role: UserRole.ESTUDIANTE,
         });
