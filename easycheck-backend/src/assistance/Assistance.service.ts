@@ -62,6 +62,13 @@ export interface StudentSubjectAttendanceDto extends StudentSubjectAttendance {
   attendancePercentage: number;
 }
 
+export interface StudentClassSessionDto {
+  classId: number;
+  subjectId: string;
+  date: Date;
+  registrationStatus: 'ENABLED' | 'DISABLED';
+}
+
 export interface CurrentStudentAttendanceDto {
   studentRut: string;
   subjectId: string;
@@ -157,6 +164,24 @@ export class AssistanceService {
           ? Math.round((row.attendedClasses / row.totalClasses) * 100)
           : 0,
     };
+  }
+
+  // CU-06 (móvil): clases de las asignaturas donde el estudiante está inscrito,
+  // para que la app pueda ofrecer a cuál generar el QR de asistencia.
+  async getCurrentStudentClasses(
+    studentRut: string,
+  ): Promise<StudentClassSessionDto[]> {
+    const student = await this.dataRepository.findStudent(studentRut);
+    if (!student) throw new StudentNotFoundException(studentRut);
+
+    const classes =
+      await this.dataRepository.findClassesForStudent(studentRut);
+    return classes.map((c) => ({
+      classId: c.id,
+      subjectId: c.subjectId,
+      date: c.date,
+      registrationStatus: c.registrationStatus,
+    }));
   }
 
   private isValidRut(rut: string): boolean {

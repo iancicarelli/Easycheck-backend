@@ -16,6 +16,22 @@ describe('CU-06 registro de asistencia mediante QR (e2e)', () => {
   });
   afterAll(async () => app.close());
 
+  it('lista las clases de las asignaturas inscritas del estudiante', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/students/me/classes')
+      .set('Authorization', TOKENS.student)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual([
+          expect.objectContaining({
+            classId: 1001,
+            subjectId: 'ASG-01',
+            registrationStatus: 'ENABLED',
+          }),
+        ]);
+      });
+  });
+
   it('genera un QR firmado y el lector registra la asistencia', async () => {
     const qr = await request(app.getHttpServer())
       .post('/api/v1/students/me/classes/1001/qr')

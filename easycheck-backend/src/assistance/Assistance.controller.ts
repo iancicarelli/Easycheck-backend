@@ -51,9 +51,51 @@ import {
 export class AssistanceController {
   constructor(private readonly assistanceService: AssistanceService) {}
 
+  // CU-04 (móvil): resumen de asistencia por asignatura del estudiante del
+  // token. Declarado antes de students/:rut/attendance para que «me» no sea
+  // capturado como :rut.
+  @Get('students/me/attendance')
+  @AllowedRoles('estudiante')
+  @UseGuards(TokenRolesGuard)
+  async getCurrentStudentAttendanceSummary(
+    @Req() request: TokenAuthenticatedRequest,
+  ) {
+    try {
+      return await this.assistanceService.getStudentAttendanceByRut(
+        request.user!.rut,
+      );
+    } catch (e) {
+      if (e instanceof StudentNotFoundException) {
+        throw new NotFoundException({ error: 'Student not found', rut: e.rut });
+      }
+      if (e instanceof InvalidRutException) {
+        throw new BadRequestException({ error: e.message, rut: e.rut });
+      }
+      throw e;
+    }
+  }
+
+  // CU-06 (móvil): clases de las asignaturas inscritas del estudiante del token.
+  @Get('students/me/classes')
+  @AllowedRoles('estudiante')
+  @UseGuards(TokenRolesGuard)
+  async getCurrentStudentClasses(@Req() request: TokenAuthenticatedRequest) {
+    try {
+      return await this.assistanceService.getCurrentStudentClasses(
+        request.user!.rut,
+      );
+    } catch (e) {
+      if (e instanceof StudentNotFoundException) {
+        throw new NotFoundException({ error: 'Student not found', rut: e.rut });
+      }
+      throw e;
+    }
+  }
+
   // GET /api/v1/students/:rut/assistance?subject=XXX
+  // El profesor accede para ubicar los ids de registro que edita en CU-08.
   @Get('students/:rut/assistance')
-  @AllowedRoles('estudiante', 'director', 'administrador')
+  @AllowedRoles('estudiante', 'profesor', 'director', 'administrador')
   @UseGuards(TokenRolesGuard)
   async getStudentAssistance(
     @Req() request: TokenAuthenticatedRequest,

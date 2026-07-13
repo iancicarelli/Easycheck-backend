@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   AssistanceRecord,
   ClassSession,
@@ -143,6 +143,15 @@ export class TypeOrmDataRepository {
 
   async findClass(classId: number): Promise<ClassSession | null> {
     return this.classes.findOneBy({ id: classId });
+  }
+
+  async findClassesForStudent(studentRut: string): Promise<ClassSession[]> {
+    const enrolled = await this.enrollments.find({ where: { studentRut } });
+    if (enrolled.length === 0) return [];
+    return this.classes.find({
+      where: { subjectId: In(enrolled.map((e) => e.subjectId)) },
+      order: { id: 'ASC' },
+    });
   }
 
   async updateClassRegistrationStatus(

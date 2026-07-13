@@ -7,6 +7,9 @@ import { validateRuntimeEnvironment } from './config/environment';
 async function bootstrap() {
   validateRuntimeEnvironment();
   const app = await NestFactory.create(AppModule);
+  // La app móvil (y flutter run -d chrome) consume la API desde otro origen;
+  // el panel web sigue pasando por el proxy de Vite sin verse afectado.
+  app.enableCors();
 
   app.useGlobalPipes(
     new ValidationPipe({

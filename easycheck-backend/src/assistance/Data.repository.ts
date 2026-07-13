@@ -189,6 +189,17 @@ export class DataRepository {
     return Promise.resolve(this.classes.find((c) => c.id === classId) ?? null);
   }
 
+  findClassesForStudent(studentRut: string): Promise<ClassSession[]> {
+    const subjectIds = new Set(
+      this.enrollments
+        .filter((e) => e.studentRut === studentRut)
+        .map((e) => e.subjectId),
+    );
+    return Promise.resolve(
+      this.classes.filter((c) => subjectIds.has(c.subjectId)),
+    );
+  }
+
   updateClassRegistrationStatus(
     classId: number,
     status: 'ENABLED' | 'DISABLED',

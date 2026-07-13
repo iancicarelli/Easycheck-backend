@@ -15,6 +15,23 @@ describe('CU-04 asistencia propia por asignatura (e2e)', () => {
   });
   afterAll(async () => app.close());
 
+  it('resume la asistencia de todas las asignaturas del estudiante', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/students/me/attendance')
+      .set('Authorization', TOKENS.student)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toEqual([
+          expect.objectContaining({
+            subjectName: 'ASG-01',
+            totalClasses: 1,
+            attendedClasses: 0,
+            attendancePercentage: 0,
+          }),
+        ]);
+      });
+  });
+
   it('obtiene la identidad desde el token del estudiante', async () => {
     await request(app.getHttpServer())
       .get('/api/v1/students/me/subjects/ASG-01/attendance')
