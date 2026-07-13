@@ -20,6 +20,25 @@ export class TypeOrmSubjectRepository {
   }
 
   async save(subject: Subject): Promise<Subject> {
-    return this.subjects.save(this.subjects.create(subject));
+    return this.subjects.save(
+      this.subjects.create({ ...subject, source: subject.source ?? 'LOCAL' }),
+    );
+  }
+
+  async upsertFromIntranet(subject: Subject): Promise<Subject> {
+    const existing = await this.subjects.findOneBy({ code: subject.code });
+    if (existing?.source === 'LOCAL') return existing;
+    return this.subjects.save(
+      this.subjects.create({
+        ...existing,
+        ...subject,
+        source: 'INTRANET',
+        lastSyncedAt: new Date(),
+      }),
+    );
+  }
+
+  count(): Promise<number> {
+    return this.subjects.count();
   }
 }

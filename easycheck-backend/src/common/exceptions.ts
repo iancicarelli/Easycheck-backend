@@ -17,6 +17,16 @@ export class SubjectNotAssignedException extends Error {
   }
 }
 
+export class StudentNotEnrolledException extends Error {
+  constructor(
+    public readonly studentRut: string,
+    public readonly subjectCode: string,
+  ) {
+    super(`Student ${studentRut} is not enrolled in subject ${subjectCode}`);
+    this.name = 'StudentNotEnrolledException';
+  }
+}
+
 export class RegistrationDisabledException extends Error {
   constructor(public readonly classId: number) {
     super(`Registration for class ${classId} is disabled`);
@@ -40,6 +50,13 @@ export class InvalidQRException extends Error {
   constructor() {
     super('Invalid QR signature');
     this.name = 'InvalidQRException';
+  }
+}
+
+export class QRAlreadyUsedException extends Error {
+  constructor() {
+    super('QR token has already been used');
+    this.name = 'QRAlreadyUsedException';
   }
 }
 
@@ -73,6 +90,34 @@ export class RegistrationAlreadyEnabledException extends Error {
   }
 }
 
+export class EditingAlreadyEnabledException extends Error {
+  constructor(public readonly classId: number) {
+    super(`Editing for class ${classId} is already enabled`);
+    this.name = 'EditingAlreadyEnabledException';
+  }
+}
+
+export class EditingAlreadyDisabledException extends Error {
+  constructor(public readonly classId: number) {
+    super(`Editing for class ${classId} is already disabled`);
+    this.name = 'EditingAlreadyDisabledException';
+  }
+}
+
+export class EditingDisabledException extends Error {
+  constructor(public readonly classId: number) {
+    super(`Editing for class ${classId} is disabled`);
+    this.name = 'EditingDisabledException';
+  }
+}
+
+export class RegistrationMustBeDisabledException extends Error {
+  constructor(public readonly classId: number) {
+    super(`Registration for class ${classId} must be disabled before editing`);
+    this.name = 'RegistrationMustBeDisabledException';
+  }
+}
+
 export class AssistanceRecordNotFoundException extends Error {
   constructor(public readonly recordId: number) {
     super(`Assistance record ${recordId} not found`);
@@ -80,33 +125,12 @@ export class AssistanceRecordNotFoundException extends Error {
   }
 }
 
-export class EmptyCredentialsException extends Error {
-  constructor(public readonly fields: string[]) {
-    super('Debe completar los campos obligatorios');
-    this.name = 'EmptyCredentialsException';
-  }
-}
-
-export class InvalidRutFormatException extends Error {
-  constructor(public readonly rut: string) {
-    super('El formato del RUT ingresado no es válido');
-    this.name = 'InvalidRutFormatException';
-  }
-}
-
-export class AccountDisabledException extends Error {
-  constructor(public readonly rut: string) {
-    super('Su cuenta se encuentra deshabilitada, contacte al administrador');
-    this.name = 'AccountDisabledException';
-  }
-}
-
-export class InvalidCredentialsException extends Error {
-  constructor() {
-    super('RUT o contraseña incorrectos');
-    this.name = 'InvalidCredentialsException';
-  }
-}
+export {
+  EmptyCredentialsException,
+  InvalidRutFormatException,
+  AccountDisabledException,
+  InvalidCredentialsException,
+} from '../auth/domain/auth.errors';
 
 export class SubjectAlreadyExistsException extends Error {
   constructor(public readonly code: string) {

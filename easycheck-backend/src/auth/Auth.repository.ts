@@ -1,30 +1,52 @@
 import { Injectable } from '@nestjs/common';
+import type { AuthRole } from './domain/auth.types';
+import { InMemoryInstitutionalIdentityService } from '../users/infrastructure/in-memory-institutional-identity.service';
+import { InMemoryUsersRepository } from '../users/infrastructure/in-memory-users.repository';
+import { UserRole } from '../users/domain/user-role.enum';
+import type { UserStatus } from '../users/domain/user.entity';
 
-export type UserRole = 'estudiante' | 'profesor';
-export type UserStatus = 'ACTIVE' | 'DISABLED';
-
-export interface AuthUser {
-  rut: string;
-  role: UserRole;
-  status: UserStatus;
-}
-
-// Almacén de usuarios en memoria (igual que DataRepository).
+/** Compatibility facade used by the existing CU-01 tests. */
 @Injectable()
 export class AuthRepository {
-  private users: AuthUser[] = [];
+  constructor(
+    private readonly accounts: InMemoryUsersRepository,
+    private readonly intranet: InMemoryInstitutionalIdentityService,
+  ) {}
 
   reset(): void {
-    this.users = [];
+    this.accounts.reset();
+    this.intranet.resetCredentials();
   }
 
-  seedUser(rut: string, role: UserRole, status: UserStatus): void {
-    this.users.push({ rut, role, status });
+  seedUser(
+    rut: string,
+    role: AuthRole,
+    status: UserStatus,
+    password = 'demo',
+  ): void {
+    const fullName = `Usuario ${role}`;
+    const digits = rut.replace(/\D/g, '').slice(-2).padStart(2, '0');
+    const email = `${role}.${digits}@ufromail.cl`;
+    void this.accounts.save({
+      rut,
+      institutionalEmail: email,
+      fullName,
+      role: this.toUserRole(role),
+      status,
+    });
+    this.intranet.seedCredential({ rut, password, fullName, email, role });
   }
 
-  // Promise-returning (convención de los adapters in-memory) para que la
-  // firma coincida con TypeOrmAuthRepository y AuthService pueda hacer await.
-  findByRut(rut: string): Promise<AuthUser | undefined> {
-    return Promise.resolve(this.users.find((u) => u.rut === rut));
+  private toUserRole(role: AuthRole): UserRole {
+    const roles: Record<AuthRole, UserRole> = {
+      estudiante: UserRole.ESTUDIANTE,
+      profesor: UserRole.PROFESOR,
+      director: UserRole.DIRECTOR_CARRERA,
+      administrador: UserRole.ADMINISTRADOR,
+    };
+    return roles[role];
   }
 }
+
+export type { AuthRole as UserRole } from './domain/auth.types';
+export type { UserStatus } from '../users/domain/user.entity';

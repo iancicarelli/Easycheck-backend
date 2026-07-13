@@ -1,5 +1,9 @@
 import { InstitutionalUser, User } from '../domain/user.entity';
 
+export type NewUser = Omit<User, 'id' | 'createdAt' | 'status'> & {
+  status?: User['status'];
+};
+
 export interface ValidateInstitutionalUserParams {
   rut: string;
   institutionalEmail: string;
@@ -14,7 +18,8 @@ export interface InstitutionalIdentityPort {
 
 export interface UsersRepositoryPort {
   existsByRut(rut: string): Promise<boolean>;
-  save(user: Omit<User, 'id' | 'createdAt'>): Promise<User>;
+  findByRut(rut: string): Promise<User | null>;
+  save(user: NewUser): Promise<User>;
 }
 
 export const INSTITUTIONAL_IDENTITY_PORT = Symbol(

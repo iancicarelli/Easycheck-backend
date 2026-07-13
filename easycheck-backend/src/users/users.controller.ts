@@ -5,6 +5,7 @@ import {
   Controller,
   NotFoundException,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
 import { RegisterUserDto } from './application/register-user.dto';
@@ -17,6 +18,10 @@ import {
   RutRequiredError,
   UserAlreadyRegisteredError,
 } from './domain/user-registration.errors';
+import {
+  AllowedRoles,
+  TokenRolesGuard,
+} from '../auth/application/token-roles.guard';
 
 @ApiTags('Registro de usuarios')
 @Controller('api/v1/users')
@@ -24,6 +29,8 @@ export class UsersController {
   constructor(private readonly registerUserService: RegisterUserService) {}
 
   @Post('register')
+  @AllowedRoles('administrador')
+  @UseGuards(TokenRolesGuard)
   @ApiCreatedResponse({ description: 'Cuenta institucional creada' })
   async register(@Body() dto: RegisterUserDto) {
     try {

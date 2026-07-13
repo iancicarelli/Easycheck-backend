@@ -1,6 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-// Refleja la forma de `Subject` en Subject.repository.ts: { code, name, career }.
 @Entity({ name: 'subjects' })
 export class SubjectEntity {
   @PrimaryColumn({ length: 20 })
@@ -11,4 +10,18 @@ export class SubjectEntity {
 
   @Column({ length: 120 })
   career!: string;
+
+  @Column({ type: 'varchar', length: 10, default: 'LOCAL' })
+  source!: 'LOCAL' | 'INTRANET';
+
+  @Column({
+    name: 'external_id',
+    type: 'varchar',
+    length: 80,
+    nullable: true,
+  })
+  externalId!: string | null;
+
+  @Column({ name: 'last_synced_at', type: 'timestamptz', nullable: true })
+  lastSyncedAt!: Date | null;
 }

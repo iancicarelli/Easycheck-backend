@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../domain/user.entity';
-import { UsersRepositoryPort } from '../application/user-registration.ports';
+import {
+  NewUser,
+  UsersRepositoryPort,
+} from '../application/user-registration.ports';
 import { UserTypeOrmEntity } from './user.typeorm.entity';
 
 /**
@@ -21,8 +24,10 @@ export class TypeOrmUsersRepository implements UsersRepositoryPort {
     return this.users.existsBy({ rut });
   }
 
-  async save(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    return this.users.save(this.users.create(user));
+  async save(user: NewUser): Promise<User> {
+    return this.users.save(
+      this.users.create({ ...user, status: user.status ?? 'ACTIVE' }),
+    );
   }
 
   async findByRut(rut: string): Promise<User | null> {

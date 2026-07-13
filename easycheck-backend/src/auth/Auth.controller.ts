@@ -15,7 +15,7 @@ import {
   InvalidRutFormatException,
   AccountDisabledException,
   InvalidCredentialsException,
-} from '../common/exceptions';
+} from './domain/auth.errors';
 
 @Controller('api/v1/auth')
 export class AuthController {

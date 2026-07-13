@@ -11,7 +11,10 @@ import {
 import { SubjectService } from './Subject.service';
 import type { CreateSubjectDto } from './Subject.service';
 import { Subject } from './Subject.repository';
-import { AdminGuard } from './Admin.guard';
+import {
+  AllowedRoles,
+  TokenRolesGuard,
+} from '../auth/application/token-roles.guard';
 import {
   MissingFieldsException,
   InvalidFieldFormatException,
@@ -23,7 +26,8 @@ export class SubjectController {
   constructor(private readonly subjectService: SubjectService) {}
 
   @Post()
-  @UseGuards(AdminGuard)
+  @AllowedRoles('administrador')
+  @UseGuards(TokenRolesGuard)
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() dto: CreateSubjectDto,

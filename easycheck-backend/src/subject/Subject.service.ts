@@ -21,10 +21,18 @@ export class SubjectService {
   async createSubject(
     dto: CreateSubjectDto,
   ): Promise<{ message: string; subject: Subject }> {
-    this.validateRequiredFields(dto);
-    this.validateFieldFormat(dto);
-    await this.assertCodeIsUnique(dto.code);
-    const saved = await this.subjectRepository.save(dto);
+    const normalized = {
+      code: dto.code?.trim(),
+      name: dto.name?.trim(),
+      career: dto.career?.trim(),
+    };
+    this.validateRequiredFields(normalized);
+    this.validateFieldFormat(normalized);
+    await this.assertCodeIsUnique(normalized.code);
+    const saved = await this.subjectRepository.save({
+      ...normalized,
+      source: 'LOCAL',
+    });
     return { message: 'Asignatura registrada correctamente', subject: saved };
   }
 

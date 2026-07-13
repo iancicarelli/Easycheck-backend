@@ -1,20 +1,25 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './Auth.controller';
 import { AuthService } from './Auth.service';
 import { AuthRepository } from './Auth.repository';
-import { TypeOrmAuthRepository } from './Auth.typeorm.repository';
-import { USE_DATABASE } from '../database/use-database';
-import { AuthUserEntity } from '../database/entities/auth-user.entity';
+import { INTRANET_AUTH_PORT, TOKEN_PORT } from './application/auth.ports';
+import { MockTokenService } from './application/mock-token.service';
+import { UsersModule } from '../users/users.module';
+import { InMemoryInstitutionalIdentityService } from '../users/infrastructure/in-memory-institutional-identity.service';
 
 @Module({
-  imports: USE_DATABASE ? [TypeOrmModule.forFeature([AuthUserEntity])] : [],
+  imports: [UsersModule],
   controllers: [AuthController],
   providers: [
     AuthService,
-    USE_DATABASE
-      ? { provide: AuthRepository, useClass: TypeOrmAuthRepository }
-      : AuthRepository,
+    AuthRepository,
+    MockTokenService,
+    { provide: TOKEN_PORT, useExisting: MockTokenService },
+    {
+      provide: INTRANET_AUTH_PORT,
+      useExisting: InMemoryInstitutionalIdentityService,
+    },
   ],
+  exports: [AuthService, MockTokenService],
 })
 export class AuthModule {}

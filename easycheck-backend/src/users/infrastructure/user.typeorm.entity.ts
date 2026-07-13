@@ -25,6 +25,9 @@ export class UserTypeOrmEntity {
   @Column({ type: 'enum', enum: UserRole })
   role!: UserRole;
 
+  @Column({ type: 'enum', enum: ['ACTIVE', 'DISABLED'], default: 'ACTIVE' })
+  status!: 'ACTIVE' | 'DISABLED';
+
   @CreateDateColumn()
   createdAt!: Date;
 }

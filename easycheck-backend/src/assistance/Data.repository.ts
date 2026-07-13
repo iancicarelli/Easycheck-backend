@@ -14,6 +14,7 @@ export interface ClassSession {
   subjectId: string;
   date: Date;
   registrationStatus: 'ENABLED' | 'DISABLED';
+  editingStatus?: 'ENABLED' | 'DISABLED';
 }
 
 export interface StudentAssistance {
@@ -38,6 +39,8 @@ export class DataRepository {
   private enrollments: { studentRut: string; subjectId: string }[] = [];
   private teachings: { professorRut: string; subjectId: string }[] = [];
   private students: { rut: string; name: string }[] = [];
+  private professors: { rut: string; name: string }[] = [];
+  private usedQrNonces = new Set<string>();
 
   // ── seed helpers (used by the test fixtures) ──────────────────────────────
   seedStudent(rut: string, name: string) {
@@ -47,7 +50,7 @@ export class DataRepository {
     this.enrollments.push({ studentRut, subjectId });
   }
   seedClass(classSession: ClassSession) {
-    this.classes.push(classSession);
+    this.classes.push({ editingStatus: 'DISABLED', ...classSession });
   }
   seedAssistance(record: AssistanceRecord) {
     this.assistances.push(record);
@@ -61,10 +64,86 @@ export class DataRepository {
     this.enrollments = [];
     this.teachings = [];
     this.students = [];
+    this.professors = [];
+    this.usedQrNonces.clear();
+  }
+
+  upsertStudent(rut: string, name: string): Promise<void> {
+    const existing = this.students.find((student) => student.rut === rut);
+    if (existing) existing.name = name;
+    else this.students.push({ rut, name });
+    return Promise.resolve();
+  }
+
+  upsertProfessor(rut: string, name: string): Promise<void> {
+    const existing = this.professors.find((professor) => professor.rut === rut);
+    if (existing) existing.name = name;
+    else this.professors.push({ rut, name });
+    return Promise.resolve();
+  }
+
+  upsertEnrollment(studentRut: string, subjectId: string): Promise<void> {
+    const exists = this.enrollments.some(
+      (item) => item.studentRut === studentRut && item.subjectId === subjectId,
+    );
+    if (!exists) this.enrollments.push({ studentRut, subjectId });
+    return Promise.resolve();
+  }
+
+  upsertTeaching(professorRut: string, subjectId: string): Promise<void> {
+    const exists = this.teachings.some(
+      (item) =>
+        item.professorRut === professorRut && item.subjectId === subjectId,
+    );
+    if (!exists) this.teachings.push({ professorRut, subjectId });
+    return Promise.resolve();
+  }
+
+  upsertClass(classSession: ClassSession): Promise<void> {
+    const normalized = { editingStatus: 'DISABLED' as const, ...classSession };
+    const index = this.classes.findIndex((item) => item.id === classSession.id);
+    if (index >= 0) this.classes[index] = normalized;
+    else this.classes.push(normalized);
+    return Promise.resolve();
+  }
+
+  countStudents(): Promise<number> {
+    return Promise.resolve(this.students.length);
+  }
+
+  countProfessors(): Promise<number> {
+    return Promise.resolve(this.professors.length);
+  }
+
+  countEnrollments(): Promise<number> {
+    return Promise.resolve(this.enrollments.length);
+  }
+
+  countTeachings(): Promise<number> {
+    return Promise.resolve(this.teachings.length);
+  }
+
+  countClasses(): Promise<number> {
+    return Promise.resolve(this.classes.length);
   }
 
   findStudent(rut: string): Promise<{ rut: string; name: string } | null> {
     return Promise.resolve(this.students.find((s) => s.rut === rut) ?? null);
+  }
+
+  isStudentEnrolled(studentRut: string, subjectId: string): Promise<boolean> {
+    return Promise.resolve(
+      this.enrollments.some(
+        (item) =>
+          item.studentRut === studentRut && item.subjectId === subjectId,
+      ),
+    );
+  }
+
+  consumeQrNonce(nonce: string): Promise<boolean> {
+    if (this.usedQrNonces.has(nonce)) return Promise.resolve(false);
+    this.usedQrNonces.add(nonce);
+    return Promise.resolve(true);
   }
 
   findAssistancesByStudentAndSubject(
@@ -119,6 +198,16 @@ export class DataRepository {
       return Promise.resolve(null);
     }
     classSession.registrationStatus = status;
+    return Promise.resolve(classSession);
+  }
+
+  updateClassEditingStatus(
+    classId: number,
+    status: 'ENABLED' | 'DISABLED',
+  ): Promise<ClassSession | null> {
+    const classSession = this.classes.find((c) => c.id === classId);
+    if (!classSession) return Promise.resolve(null);
+    classSession.editingStatus = status;
     return Promise.resolve(classSession);
   }
 

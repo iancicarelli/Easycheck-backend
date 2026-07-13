@@ -1,24 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AuthUser } from './Auth.repository';
-import { AuthUserEntity } from '../database/entities/auth-user.entity';
+import type { User } from '../users/domain/user.entity';
+import { UserTypeOrmEntity } from '../users/infrastructure/user.typeorm.entity';
 
-/**
- * Implementación Postgres/TypeORM de AuthRepository. Se registra bajo el
- * mismo token cuando `DB_HOST` está definido. `findByRut` es async aquí
- * (la versión in-memory es sync); AuthService hace `await`, que funciona
- * con ambas.
- */
+/** Historical adapter kept temporarily for import compatibility. */
 @Injectable()
 export class TypeOrmAuthRepository {
   constructor(
-    @InjectRepository(AuthUserEntity)
-    private readonly users: Repository<AuthUserEntity>,
+    @InjectRepository(UserTypeOrmEntity)
+    private readonly accounts: Repository<UserTypeOrmEntity>,
   ) {}
 
-  async findByRut(rut: string): Promise<AuthUser | undefined> {
-    const user = await this.users.findOneBy({ rut });
-    return user ? (user as AuthUser) : undefined;
+  async findByRut(rut: string): Promise<User | null> {
+    return this.accounts.findOneBy({ rut });
   }
 }

@@ -37,7 +37,12 @@ export class RegisterUserService {
       throw new InvalidRutFormatError(command.rut);
     }
 
-    if (!Object.values(UserRole).includes(command.role)) {
+    const registerableRoles: UserRole[] = [
+      UserRole.ESTUDIANTE,
+      UserRole.PROFESOR,
+      UserRole.DIRECTOR_CARRERA,
+    ];
+    if (!registerableRoles.includes(command.role)) {
       throw new RoleNotAllowedError(command.role);
     }
 
@@ -67,6 +72,7 @@ export class RegisterUserService {
       institutionalEmail: institutionalUser.institutionalEmail,
       fullName: command.fullName || institutionalUser.fullName,
       role: command.role,
+      status: 'ACTIVE',
     });
   }
 }

@@ -6,9 +6,13 @@ import { SubjectRepository } from './Subject.repository';
 import { TypeOrmSubjectRepository } from './Subject.typeorm.repository';
 import { USE_DATABASE } from '../database/use-database';
 import { SubjectEntity } from '../database/entities/subject.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: USE_DATABASE ? [TypeOrmModule.forFeature([SubjectEntity])] : [],
+  imports: [
+    UsersModule,
+    ...(USE_DATABASE ? [TypeOrmModule.forFeature([SubjectEntity])] : []),
+  ],
   controllers: [SubjectController],
   providers: [
     SubjectService,
@@ -16,5 +20,6 @@ import { SubjectEntity } from '../database/entities/subject.entity';
       ? { provide: SubjectRepository, useClass: TypeOrmSubjectRepository }
       : SubjectRepository,
   ],
+  exports: [SubjectRepository],
 })
 export class SubjectModule {}

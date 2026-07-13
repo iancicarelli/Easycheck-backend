@@ -1,4 +1,13 @@
 cu-implementation.md
 cu-implementation-status.md
 CLAUDE.md
+
+# Variables locales: los ejemplos documentados sí se versionan.
+.env
+.env.*
+!.env.example
+
+# Archivos del sistema operativo.
+.DS_Store
+Thumbs.db
 SEED.md

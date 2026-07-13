@@ -25,4 +25,11 @@ export class ClassSessionEntity {
     default: 'ENABLED',
   })
   registrationStatus!: RegistrationStatus;
+
+  @Column({
+    type: 'enum',
+    enum: ['ENABLED', 'DISABLED'],
+    default: 'DISABLED',
+  })
+  editingStatus!: RegistrationStatus;
 }

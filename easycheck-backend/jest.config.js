@@ -37,7 +37,11 @@ module.exports = {
     '!src/**/*.module.ts', // wiring de NestJS, no es lógica de negocio testeable
     '!src/main.ts', // bootstrap de la aplicación
     '!src/seed/**', // script de seed: bootstrap de datos, igual que main.ts
-    '!src/database/**', // entities/config TypeORM: esquema declarativo, sin lógica
+    '!src/database/entities/**', // esquema declarativo de TypeORM
+    '!src/database/migrations/**', // DDL validado por prueba de contrato
+    '!src/database/database.module.ts',
+    '!src/database/data-source.ts',
+    '!src/database/use-database.ts',
     '!src/**/*.typeorm.repository.ts', // adapters Postgres: solo ejercitables
     '!src/**/typeorm-*.ts', //   contra una DB real; los tests usan in-memory
   ],
@@ -64,7 +68,7 @@ module.exports = {
     {
       ...common,
       displayName: 'bdd',
-      testMatch: ['<rootDir>/test/BDD*/steps/**/*.steps.ts'],
+      testMatch: ['<rootDir>/test/CU_*/bdd/steps/**/*.steps.ts'],
     },
     {
       ...common,

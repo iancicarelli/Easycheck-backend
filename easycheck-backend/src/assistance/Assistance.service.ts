@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IsInt, IsString } from 'class-validator';
+import { IsString } from 'class-validator';
 import {
   DataRepository,
   StudentAssistance,
@@ -17,7 +17,14 @@ import {
   RegistrationAlreadyDisabledException,
   RegistrationAlreadyEnabledException,
   AssistanceRecordNotFoundException,
+  StudentNotEnrolledException,
+  QRAlreadyUsedException,
+  EditingAlreadyEnabledException,
+  EditingAlreadyDisabledException,
+  EditingDisabledException,
+  RegistrationMustBeDisabledException,
 } from '../common/exceptions';
+import { QrTokenService } from './qr-token.service';
 
 export interface StudentAssistanceDto {
   studentRut: string;
@@ -33,16 +40,7 @@ export interface StudentAssistanceDto {
 // el bootstrap real (los tests de integración no aplican el pipe global).
 export class RegisterAssistanceDto {
   @IsString()
-  studentRut!: string;
-
-  @IsInt()
-  classId!: number;
-
-  @IsString()
-  subjectId!: string;
-
-  @IsString()
-  qrSignature!: string;
+  qrToken!: string;
 }
 
 export interface AssistanceConfirmationDto {
@@ -52,7 +50,23 @@ export interface AssistanceConfirmationDto {
   classId: number;
 }
 
+export interface GeneratedQrDto {
+  studentRut: string;
+  classId: number;
+  subjectId: string;
+  qrToken: string;
+  expiresAt: string;
+}
+
 export interface StudentSubjectAttendanceDto extends StudentSubjectAttendance {
+  attendancePercentage: number;
+}
+
+export interface CurrentStudentAttendanceDto {
+  studentRut: string;
+  subjectId: string;
+  attendedClasses: number;
+  totalClasses: number;
   attendancePercentage: number;
 }
 
@@ -64,6 +78,10 @@ export interface UpdateRegistrationStatusDto {
 // CU-08 — body de PATCH professors/:rut/assistance/:id
 export interface EditAssistanceDto {
   present: boolean;
+}
+
+export interface UpdateEditingStatusDto {
+  status: 'ENABLED' | 'DISABLED';
 }
 
 export interface RegistrationStatusConfirmationDto {
@@ -79,9 +97,19 @@ export interface EditAssistanceConfirmationDto {
   present: boolean;
 }
 
+export interface EditingStatusConfirmationDto {
+  message: string;
+  classId: number;
+  editingStatus: 'ENABLED' | 'DISABLED';
+  registrationStatus: 'ENABLED' | 'DISABLED';
+}
+
 @Injectable()
 export class AssistanceService {
-  constructor(private readonly dataRepository: DataRepository) {}
+  constructor(
+    private readonly dataRepository: DataRepository,
+    private readonly qrTokens: QrTokenService,
+  ) {}
 
   async getStudentAttendanceByRut(
     rut: string,
@@ -105,6 +133,30 @@ export class AssistanceService {
           ? Math.round((row.attendedClasses / row.totalClasses) * 100)
           : 0,
     }));
+  }
+
+  async getCurrentStudentSubjectAttendance(
+    studentRut: string,
+    subjectId: string,
+  ): Promise<CurrentStudentAttendanceDto> {
+    const student = await this.dataRepository.findStudent(studentRut);
+    if (!student) throw new StudentNotFoundException(studentRut);
+
+    const rows =
+      await this.dataRepository.findStudentAttendanceByRut(studentRut);
+    const row = rows.find((item) => item.subjectName === subjectId);
+    if (!row) throw new StudentNotEnrolledException(studentRut, subjectId);
+
+    return {
+      studentRut,
+      subjectId,
+      attendedClasses: row.attendedClasses,
+      totalClasses: row.totalClasses,
+      attendancePercentage:
+        row.totalClasses > 0
+          ? Math.round((row.attendedClasses / row.totalClasses) * 100)
+          : 0,
+    };
   }
 
   private isValidRut(rut: string): boolean {
@@ -163,35 +215,76 @@ export class AssistanceService {
   }
 
   // ── IT-3 / IT-4: Register assistance via QR ──────────────────────────────
+  async generateStudentQr(
+    studentRut: string,
+    classId: number,
+  ): Promise<GeneratedQrDto> {
+    const student = await this.dataRepository.findStudent(studentRut);
+    if (!student) throw new StudentNotFoundException(studentRut);
+
+    const classSession = await this.dataRepository.findClass(classId);
+    if (!classSession) throw new ClassNotFoundException(classId);
+
+    const enrolled = await this.dataRepository.isStudentEnrolled(
+      studentRut,
+      classSession.subjectId,
+    );
+    if (!enrolled) {
+      throw new StudentNotEnrolledException(studentRut, classSession.subjectId);
+    }
+    if (classSession.registrationStatus === 'DISABLED') {
+      throw new RegistrationDisabledException(classId);
+    }
+
+    return {
+      studentRut,
+      classId,
+      subjectId: classSession.subjectId,
+      ...this.qrTokens.create(studentRut, classId, classSession.subjectId),
+    };
+  }
+
   async registerAssistanceQR(
     dto: RegisterAssistanceDto,
   ): Promise<AssistanceConfirmationDto> {
-    // Validate QR signature (simplified stub: any non-empty signature is valid)
-    if (!dto.qrSignature || dto.qrSignature === 'INVALID_SIGNATURE') {
+    const claims = this.qrTokens.verify(dto.qrToken ?? '');
+    if (!claims) throw new InvalidQRException();
+
+    const classSession = await this.dataRepository.findClass(claims.classId);
+    if (!classSession) throw new ClassNotFoundException(claims.classId);
+    if (classSession.subjectId !== claims.subjectId) {
       throw new InvalidQRException();
     }
-
-    const classSession = await this.dataRepository.findClass(dto.classId);
-    if (!classSession) {
-      throw new ClassNotFoundException(dto.classId);
+    if (classSession.registrationStatus === 'DISABLED') {
+      throw new RegistrationDisabledException(claims.classId);
     }
 
-    if (classSession.registrationStatus === 'DISABLED') {
-      throw new RegistrationDisabledException(dto.classId);
+    const enrolled = await this.dataRepository.isStudentEnrolled(
+      claims.studentRut,
+      claims.subjectId,
+    );
+    if (!enrolled) {
+      throw new StudentNotEnrolledException(
+        claims.studentRut,
+        claims.subjectId,
+      );
     }
 
     const alreadyRegistered = await this.dataRepository.assistanceExists(
-      dto.studentRut,
-      dto.classId,
+      claims.studentRut,
+      claims.classId,
     );
     if (alreadyRegistered) {
-      throw new DuplicateAssistanceException(dto.studentRut, dto.classId);
+      throw new DuplicateAssistanceException(claims.studentRut, claims.classId);
     }
 
+    const firstUse = await this.dataRepository.consumeQrNonce(claims.nonce);
+    if (!firstUse) throw new QRAlreadyUsedException();
+
     const record = await this.dataRepository.insertAssistance({
-      studentRut: dto.studentRut,
-      classId: dto.classId,
-      subjectId: dto.subjectId,
+      studentRut: claims.studentRut,
+      classId: claims.classId,
+      subjectId: claims.subjectId,
       date: new Date(),
       present: true,
     });
@@ -199,8 +292,8 @@ export class AssistanceService {
     return {
       message: 'Assistance registered successfully',
       recordId: record.id,
-      studentRut: dto.studentRut,
-      classId: dto.classId,
+      studentRut: claims.studentRut,
+      classId: claims.classId,
     };
   }
 
@@ -261,11 +354,57 @@ export class AssistanceService {
     }
 
     await this.dataRepository.updateClassRegistrationStatus(classId, 'ENABLED');
+    await this.dataRepository.updateClassEditingStatus(classId, 'DISABLED');
 
     return {
       message: 'Registration enabled successfully',
       classId,
       registrationStatus: 'ENABLED',
+    };
+  }
+
+  async enableEditing(
+    professorRut: string,
+    classId: number,
+  ): Promise<EditingStatusConfirmationDto> {
+    const classSession = await this.assertProfessorOwnsClass(
+      professorRut,
+      classId,
+    );
+    if (classSession.registrationStatus !== 'DISABLED') {
+      throw new RegistrationMustBeDisabledException(classId);
+    }
+    if (classSession.editingStatus === 'ENABLED') {
+      throw new EditingAlreadyEnabledException(classId);
+    }
+
+    await this.dataRepository.updateClassEditingStatus(classId, 'ENABLED');
+    return {
+      message: 'Editing enabled successfully',
+      classId,
+      editingStatus: 'ENABLED',
+      registrationStatus: 'DISABLED',
+    };
+  }
+
+  async disableEditing(
+    professorRut: string,
+    classId: number,
+  ): Promise<EditingStatusConfirmationDto> {
+    const classSession = await this.assertProfessorOwnsClass(
+      professorRut,
+      classId,
+    );
+    if (classSession.editingStatus !== 'ENABLED') {
+      throw new EditingAlreadyDisabledException(classId);
+    }
+
+    await this.dataRepository.updateClassEditingStatus(classId, 'DISABLED');
+    return {
+      message: 'Editing disabled successfully',
+      classId,
+      editingStatus: 'DISABLED',
+      registrationStatus: classSession.registrationStatus,
     };
   }
 
@@ -280,12 +419,18 @@ export class AssistanceService {
       throw new AssistanceRecordNotFoundException(recordId);
     }
 
+    const classSession = await this.dataRepository.findClass(record.classId);
+    if (!classSession) throw new ClassNotFoundException(record.classId);
+
     const teaches = await this.dataRepository.findTeaching(
       professorRut,
       record.subjectId,
     );
     if (!teaches) {
       throw new SubjectNotAssignedException(professorRut, record.subjectId);
+    }
+    if (classSession.editingStatus !== 'ENABLED') {
+      throw new EditingDisabledException(record.classId);
     }
 
     await this.dataRepository.updateAssistancePresence(recordId, present);

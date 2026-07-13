@@ -11,6 +11,8 @@ import { TypeOrmUsersRepository } from './infrastructure/typeorm-users.repositor
 import { UserTypeOrmEntity } from './infrastructure/user.typeorm.entity';
 import { USE_DATABASE } from '../database/use-database';
 import { UsersController } from './users.controller';
+import { MockTokenService } from '../auth/application/mock-token.service';
+import { TokenRolesGuard } from '../auth/application/token-roles.guard';
 
 // Los providers in-memory se registran SIEMPRE (los tests BDD los obtienen
 // por token de clase); solo el binding del puerto cambia según USE_DATABASE.
@@ -21,6 +23,8 @@ import { UsersController } from './users.controller';
   controllers: [UsersController],
   providers: [
     RegisterUserService,
+    MockTokenService,
+    TokenRolesGuard,
     InMemoryInstitutionalIdentityService,
     InMemoryUsersRepository,
     ...(USE_DATABASE ? [TypeOrmUsersRepository] : []),
@@ -39,6 +43,9 @@ import { UsersController } from './users.controller';
     RegisterUserService,
     InMemoryInstitutionalIdentityService,
     InMemoryUsersRepository,
+    USERS_REPOSITORY_PORT,
+    MockTokenService,
+    TokenRolesGuard,
   ],
 })
 export class UsersModule {}

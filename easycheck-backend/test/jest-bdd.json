@@ -2,7 +2,7 @@
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": ".",
   "testEnvironment": "node",
-  "testRegex": "BDD.*/steps/.*\\.steps\\.ts$",
+  "testRegex": "CU_.*/bdd/steps/.*\\.steps\\.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

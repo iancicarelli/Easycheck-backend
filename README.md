@@ -1,187 +1,291 @@
-# Easycheck-backend
+# EasyCheck Backend
 
-API REST de control de asistencia a clases (UFRO), hecha con NestJS.
-Guía rápida para levantar el proyecto y probar los endpoints.
+API REST de control de asistencia para la UFRO, desarrollada con NestJS,
+TypeORM y PostgreSQL. El proyecto implementa los casos de uso CU-01 a CU-09,
+una API Intranet simulada y registro de asistencia mediante QR firmado.
 
-> **Ojo con las rutas:** el repo git es `Easycheck-backend/`, pero el proyecto
-> Nest vive un nivel más abajo en `easycheck-backend/`. Los comandos `npm` se
-> corren desde ahí; los `docker compose`, desde la raíz del repo.
+- API: `http://localhost:3000`
+- Swagger: `http://localhost:3000/api/docs`
+- Guía completa de pruebas: [`TESTING.md`](TESTING.md)
+- Contratos de integración:
+  [`easycheck-backend/docs/integration-contracts.md`](easycheck-backend/docs/integration-contracts.md)
+- Estado del Avance 3: [`avance3.md`](avance3.md)
 
----
+> La raíz Git contiene `docker-compose.yml`; el proyecto NestJS está dentro de
+> `easycheck-backend/`. Los comandos Docker se ejecutan desde la raíz y los
+> comandos npm desde `easycheck-backend/`.
 
-## 1) Arranque con Docker (recomendado)
+## Requisitos
 
-Levanta todo el stack con un solo comando: **Postgres + backend + datos de
-demo**. El `docker-compose.yml` construye el Dockerfile del backend, arranca
-Postgres 16 y siembra datos automáticamente al iniciar.
+- Node.js 22 y npm.
+- Docker Desktop con Docker Compose, para PostgreSQL y el despliegue completo.
+- k6, o la imagen Docker `grafana/k6`, para carga y estrés.
 
-```bash
-# 1. Ubicarse en la raíz del repo (donde está docker-compose.yml)
-cd Easycheck-backend
+## Arranque completo con Docker
 
-# 2. Construir y levantar (Postgres + backend + seed automático)
-docker compose up --build
+Desde la raíz del repositorio:
 
-# 3. Listo. La API queda en:
-#    http://localhost:3000            → API
-#    http://localhost:3000/api/docs   → Swagger (probar endpoints desde el navegador)
-
-# 4. Si cambiaste entidades/modelo, regenera el esquema desde cero:
-docker compose down -v && docker compose up --build
+```powershell
+Copy-Item .env.example .env
 ```
 
-- Postgres queda en `localhost:5433` (el 5432 suele estar ocupado por un
-  Postgres local). Credenciales de la base (solo dev): usuario `easycheck`,
-  contraseña `easycheck_dev`, base `easycheck`.
-- El seed es **idempotente**: si la base ya tiene datos, no los duplica.
+Editar `.env` antes de arrancar. Como mínimo:
 
----
+```dotenv
+POSTGRES_USER=easycheck
+POSTGRES_PASSWORD=una-clave-local
+POSTGRES_DB=easycheck
+POSTGRES_HOST_PORT=5433
+QR_SIGNING_SECRET=una-clave-qr-de-al-menos-32-caracteres
+QR_TTL_SECONDS=300
+READER_API_KEY=una-clave-de-lector-de-al-menos-16-caracteres
+```
 
-## 2) Arranque sin Docker (modo en memoria)
+Luego:
 
-Sin la variable `DB_HOST`, el backend corre con repositorios **en memoria** (no
-necesita Postgres). Es el mismo modo que usan las pruebas.
+```powershell
+docker compose up -d --build postgres backend
+docker compose ps
+docker compose logs -f backend
+```
 
-```bash
-# 1. Entrar al proyecto Nest (un nivel más abajo del repo)
-cd easycheck-backend
+El arranque realiza automáticamente:
 
-# 2. Instalar dependencias
+1. espera de PostgreSQL;
+2. ejecución de migraciones TypeORM;
+3. seed idempotente de demostración;
+4. inicio del backend en el puerto 3000.
+
+PostgreSQL queda publicado en `localhost:5433`. Para detener sin borrar datos:
+
+```powershell
+docker compose down
+```
+
+Para borrar el volumen y validar una migración desde cero:
+
+```powershell
+docker compose down -v
+docker compose up -d --build postgres backend
+```
+
+## Arranque local en memoria
+
+Sin `DB_HOST`, Nest usa repositorios en memoria. Este modo es rápido y se usa en
+las suites Jest, pero los datos desaparecen al detener la aplicación.
+
+```powershell
+Set-Location easycheck-backend
 npm install
-
-# 3. Levantar el servidor en modo watch (puerto 3000)
 npm run start:dev
-
-# 4. Probar en el navegador:
-#    http://localhost:3000/api/docs   → Swagger
-
-# 5. (Opcional) correr todas las pruebas — no requieren Docker ni Postgres
-npm test
 ```
 
-En este modo los datos viven en memoria y se reinician al reiniciar el servidor.
+## Autenticación simulada
 
----
+La Intranet real aún no existe. El adaptador simulado valida las credenciales de
+demostración y entrega un token determinístico. Las rutas protegidas reciben:
 
-## Endpoints por caso de uso
-
-Todas las rutas cuelgan del prefijo `api/v1` y la base es
-`http://localhost:3000`. Los RUT de demo vienen del seed (solo modo Docker).
-
-**Usuarios de login (seed):** la contraseña aún no se valida, cualquier valor no
-vacío sirve.
-
-| RUT | Rol | Estado |
-|-----|-----|--------|
-| `11111111-1` | estudiante | activo |
-| `22222222-2` | profesor | activo |
-| `33333333-3` | director | activo |
-| `44444444-4` | administrador | activo |
-| `77777777-7` | estudiante | **deshabilitado** (para probar el 403) |
-
-> **Nota sobre permisos:** algunos endpoints están protegidos por rol. Como aún
-> no hay login con token real, el rol se envía con el header `x-user-role`
-> (más un header `authorization` con cualquier valor). Es un atajo de
-> desarrollo.
-
----
-
-### CU-01 · Inicio de sesión
-- **Endpoint:** `POST http://localhost:3000/api/v1/auth/login`
-- **Credenciales:** RUT del seed + cualquier contraseña no vacía.
-- **Recibe:** `{ "rut": "11111111-1", "password": "demo" }`
-- **Entrega:** `200` con los datos del usuario. Con `77777777-7` → `403` (cuenta deshabilitada).
-
-### CU-02 · Registro de usuario
-- **Endpoint:** `POST http://localhost:3000/api/v1/users/register`
-- **Credenciales:** ninguna. El RUT institucional conocido por el stub es `12345678-9`.
-- **Recibe:** `{ "rut", "institutionalEmail", "institutionalPassword", "fullName", "role" }`
-- **Entrega:** `201` con el usuario creado.
-
-### CU-03 · Asistencia de un estudiante (por RUT)
-- **Endpoint:** `GET http://localhost:3000/api/v1/students/:rut/attendance`
-- **Credenciales:** header `x-user-role: director` o `administrador`.
-- **Recibe:** el RUT en la URL (ej. `11111111-1`).
-- **Entrega:** asistencia agrupada por asignatura: `[{ subjectName, attendedClasses, totalClasses, attendancePercentage }]`. RUT inválido → `400`, estudiante inexistente → `404`.
-
-### CU-04 · Asistencia del alumno en una asignatura
-- **Endpoint:** `GET http://localhost:3000/api/v1/students/:rut/assistance?subject=ICC-101`
-- **Credenciales:** ninguna.
-- **Recibe:** RUT en la URL + `subject` como query.
-- **Entrega:** el porcentaje de asistencia de ese alumno en la asignatura.
-
-### CU-05 · Asistencia de los alumnos de una asignatura
-- **Endpoint:** `GET http://localhost:3000/api/v1/professors/:rut/subjects/:code/assistance`
-- **Credenciales:** ninguna.
-- **Recibe:** RUT del profesor y código de asignatura en la URL (ej. `22222222-2`, `ICC-101`).
-- **Entrega:** lista de estudiantes con su asistencia. Profesor sin esa asignatura → `404`.
-
-### CU-06 · Registrar asistencia vía QR
-- **Endpoint:** `POST http://localhost:3000/api/v1/assistance/register`
-- **Credenciales:** ninguna.
-- **Recibe:** `{ "studentRut", "classId", "subjectId", "qrSignature" }`
-- **Entrega:** `201` al registrar. Si la clase tiene el registro deshabilitado (ej. `classId` 2) → `409`.
-
-### CU-07 · Deshabilitar el registro de una clase
-- **Endpoint:** `PATCH http://localhost:3000/api/v1/professors/:rut/classes/:id/registration`
-- **Credenciales:** ninguna.
-- **Recibe:** `{ "status": "DISABLED" }`
-- **Entrega:** `200`. Si ya estaba deshabilitado → `409`.
-
-### CU-08 · Habilitar el registro / editar una asistencia
-- **Endpoints:**
-  - `PATCH http://localhost:3000/api/v1/professors/:rut/classes/:id/registration` → recibe `{ "status": "ENABLED" }`
-  - `PATCH http://localhost:3000/api/v1/professors/:rut/assistance/:id` → recibe `{ "present": true }`
-- **Credenciales:** ninguna.
-- **Entrega:** `200`. Registro inexistente → `404`, `present` no booleano → `400`.
-
-### CU-09 · Crear una asignatura
-- **Endpoint:** `POST http://localhost:3000/api/v1/subjects`
-- **Credenciales:** header `x-user-role: administrador`.
-- **Recibe:** `{ "code", "name", "career" }` (ej. `ICC-404`, `Sistemas Operativos`, `ICINF`).
-- **Entrega:** `201`. Código duplicado → `409`, datos inválidos → `400`.
-
----
-
-## 3) SonarQube (análisis de calidad)
-
-SonarQube corre con Docker, aparte del stack de la app. Primero se necesita
-tenerlo **levantado** y crear el proyecto para obtener un token.
-
-```bash
-# 1. Levantar SonarQube (accesible en http://localhost:9000; usuario/clave: admin / admin)
-docker compose up -d sonarqube
-
-# 2. En http://localhost:9000 crear el proyecto "easycheck-backend" y generar su token.
-
-# 3. Generar la cobertura de tests (desde el proyecto Nest)
-cd easycheck-backend
-npm run test:cov
-
-# 4. Correr el scanner (desde easycheck-backend/, usa sonar-project.properties)
-docker run --rm \
-  --network easycheck-backend_sonar-network \
-  -v "$(pwd):/usr/src" -w /usr/src \
-  sonarsource/sonar-scanner-cli \
-  -Dsonar.host.url=http://sonarqube:9000 \
-  -Dsonar.token=TU_TOKEN
+```http
+Authorization: Bearer <token>
 ```
 
-- El scanner debe unirse a la red `easycheck-backend_sonar-network` (Compose le
-  antepone el nombre del proyecto).
-- La configuración (fuentes, tests, ruta del `lcov`) vive en
-  `easycheck-backend/sonar-project.properties`; por eso el scanner se corre
-  **desde `easycheck-backend/`** y solo hace falta pasarle el host y el token.
+No se usa `x-user-role`: el rol y el RUT se extraen del token y se comparan con
+una cuenta local `ACTIVE`.
 
----
+Credenciales de demostración (`password: demo`):
 
-## Comandos útiles
+| RUT          | Rol           | Estado        |
+| ------------ | ------------- | ------------- |
+| `11111111-1` | estudiante    | activo        |
+| `22222222-2` | profesor      | activo        |
+| `33333333-3` | director      | activo        |
+| `44444444-4` | administrador | activo        |
+| `77777777-7` | estudiante    | deshabilitado |
 
-```bash
-# Desde easycheck-backend/
-npm run start:dev          # servidor en modo watch
-npm run build              # compilar a dist/
-npm test                   # todas las pruebas (unit + integration + e2e + bdd + tdd)
-npm run test:cov           # pruebas + reporte de cobertura combinado
-npm run lint               # eslint --fix
+Ejemplo de login:
+
+```powershell
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri 'http://localhost:3000/api/v1/auth/login' `
+  -ContentType 'application/json' `
+  -Body '{"rut":"11111111-1","password":"demo"}'
+
+$studentToken = $login.token
 ```
+
+Para importar el snapshot de la Intranet simulada en la cuenta local y la base:
+
+```powershell
+$headers = @{ Authorization = 'Bearer mock-token-44444444-4-administrador' }
+Invoke-RestMethod `
+  -Method Post `
+  -Uri 'http://localhost:3000/api/v1/api-intranet/sync' `
+  -Headers $headers
+```
+
+La sincronización es idempotente y agrega/actualiza usuarios, estudiantes,
+profesores, asignaturas, inscripciones, docencia y clases.
+
+## Casos de uso y rutas canónicas
+
+| CU    | Operación                          | Método y ruta                                            | Rol                      |
+| ----- | ---------------------------------- | -------------------------------------------------------- | ------------------------ |
+| CU-01 | Iniciar sesión                     | `POST /api/v1/auth/login`                                | Público con credenciales |
+| CU-02 | Registrar cuenta local             | `POST /api/v1/users/register`                            | Administrador            |
+| CU-03 | Consultar estudiante por RUT       | `GET /api/v1/students/:rut/attendance`                   | Director/administrador   |
+| CU-04 | Consultar asistencia propia        | `GET /api/v1/students/me/subjects/:subjectId/attendance` | Estudiante               |
+| CU-05 | Consultar asistencia de asignatura | `GET /api/v1/professors/me/subjects/:code/attendance`    | Profesor                 |
+| CU-06 | Generar QR                         | `POST /api/v1/students/me/classes/:classId/qr`           | Estudiante               |
+| CU-06 | Consumir QR                        | `POST /api/v1/assistance/register`                       | Lector con API key       |
+| CU-07 | Cerrar registro                    | `PATCH /api/v1/professors/me/classes/:id/registration`   | Profesor                 |
+| CU-08 | Abrir/cerrar edición               | `PATCH /api/v1/professors/me/classes/:id/editing`        | Profesor                 |
+| CU-08 | Corregir asistencia                | `PATCH /api/v1/professors/me/assistance/:id`             | Profesor                 |
+| CU-09 | Crear asignatura local             | `POST /api/v1/subjects`                                  | Administrador            |
+
+Swagger contiene los DTO y respuestas principales. Las rutas antiguas que
+incluyen el RUT del profesor se conservan temporalmente como compatibilidad, pero
+las aplicaciones nuevas deben usar las rutas `/me`.
+
+## Flujo QR para app lector QR
+
+### 1. El estudiante genera el QR
+
+```http
+POST /api/v1/students/me/classes/1002/qr
+Authorization: Bearer mock-token-55555555-5-estudiante
+```
+
+Respuesta `201`:
+
+```json
+{
+  "studentRut": "55555555-5",
+  "classId": 1002,
+  "subjectId": "INF-301",
+  "qrToken": "<claims-base64url>.<firma-hmac>",
+  "expiresAt": "2026-07-13T05:14:02.824Z"
+}
+```
+
+El endpoint valida:
+
+1. token Bearer válido;
+2. cuenta local existente, activa y con rol estudiante;
+3. estudiante existente;
+4. `classId` entero y clase existente;
+5. estudiante inscrito en la asignatura de la clase;
+6. registro de la clase en estado `ENABLED`.
+
+El token contiene `studentRut`, `classId`, `subjectId`, `issuedAt`, `expiresAt`
+y un `nonce` UUID. Se firma con HMAC-SHA256 usando `QR_SIGNING_SECRET`. Su
+duración predeterminada es de 300 segundos, configurable con
+`QR_TTL_SECONDS`.
+
+Actualmente no se valida cercanía física, fecha/hora de la clase ni dispositivo
+del estudiante. Si esos requisitos forman parte de la demostración, deben
+definirse antes de ampliar el contrato.
+
+### 2. La mini app escanea y consume el QR
+
+La app debe enviar el texto completo escaneado, sin modificarlo ni construir sus
+propios claims:
+
+```http
+POST /api/v1/assistance/register
+Content-Type: application/json
+x-reader-key: <READER_API_KEY>
+
+{
+  "qrToken": "<texto completo leído desde el QR>"
+}
+```
+
+Respuesta `201`:
+
+```json
+{
+  "message": "Assistance registered successfully",
+  "recordId": 4,
+  "studentRut": "55555555-5",
+  "classId": 1002
+}
+```
+
+El backend valida, en este orden lógico:
+
+1. `x-reader-key` coincide con `READER_API_KEY`;
+2. el body contiene solamente un `qrToken` string;
+3. formato del token, firma HMAC y estructura de claims;
+4. token no expirado y `issuedAt` no más de 30 segundos en el futuro;
+5. clase existente y asignatura del token igual a la clase;
+6. registro de la clase todavía `ENABLED`;
+7. estudiante aún inscrito;
+8. ausencia de asistencia previa para estudiante/clase;
+9. nonce no utilizado;
+10. inserción de la asistencia como `present: true`.
+
+Respuestas que debe manejar la mini app:
+
+| HTTP | Significado                                          | Acción sugerida                                   |
+| ---: | ---------------------------------------------------- | ------------------------------------------------- |
+|  201 | Asistencia registrada                                | Mostrar confirmación y bloquear reenvío           |
+|  400 | QR malformado, alterado o expirado                   | Solicitar al estudiante generar otro QR           |
+|  401 | API key de lector ausente/incorrecta                 | Mostrar error de configuración del lector         |
+|  403 | Estudiante no inscrito                               | Informar que no puede registrar esa clase         |
+|  404 | Clase inexistente                                    | Informar QR/clase no disponible                   |
+|  409 | Registro cerrado, asistencia duplicada o nonce usado | No reintentar automáticamente; mostrar el mensaje |
+
+Recomendaciones para la mini app:
+
+- detener o pausar el escáner mientras la petición está en curso;
+- aplicar debounce para no enviar varias veces el mismo frame;
+- no reintentar automáticamente respuestas 4xx;
+- usar timeout y permitir reintento manual solo ante fallos de red/5xx;
+- no registrar el `qrToken` ni la API key en logs;
+- mantener `READER_API_KEY` fuera del repositorio y del código fuente;
+- en una app pública, no distribuir una API key compartida: usar identidad por
+  lector/dispositivo y rotación de credenciales;
+- si la mini app es web y corre en otro origen, será necesario configurar CORS
+  en el backend. Una aplicación móvil nativa no tiene esa restricción del
+  navegador.
+
+## Pruebas y calidad
+
+La secuencia completa, incluyendo unitarias, integración, BDD, E2E,
+PostgreSQL, k6/Grafana y SonarQube, está en [`TESTING.md`](TESTING.md).
+
+El perfil de rendimiento final toma como referencia una matrícula de 10.000
+estudiantes: procesa 10.000 interacciones con 100 VUs en carga normal y escala
+de 100 a 300 VUs en estrés. La explicación de qué representa cada operación y
+sus límites está en
+[`test/performance/README.md`](easycheck-backend/test/performance/README.md).
+
+Comandos rápidos desde `easycheck-backend/`:
+
+```powershell
+npm run build
+npm run test:tdd -- --runInBand
+npm run test:integration -- --runInBand
+npm run test:bdd -- --runInBand
+npm run test:e2e -- --runInBand
+npm run test:cov -- --runInBand
+```
+
+Resultados de referencia actuales:
+
+- TDD: 12 suites / 51 pruebas;
+- integración: 9 suites / 74 pruebas;
+- BDD: 9 suites / 19 escenarios;
+- E2E: 9 suites / 9 pruebas;
+- combinado: 40 suites / 154 pruebas;
+- cobertura: 94,15% statements, 81,83% branches y 94,24% lines.
+
+## Limitaciones conocidas
+
+- La Intranet y los tokens de sesión son simulados; no existe aún API real ni
+  JWT productivo.
+- La API key actual identifica al conjunto de lectores, no a cada dispositivo.
+- El modo Jest usa repositorios en memoria. La validación Docker/PostgreSQL debe
+  ejecutarse además de la suite automatizada.
+- No se valida geolocalización ni que el horario actual coincida con la clase.

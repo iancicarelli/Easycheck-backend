@@ -12,6 +12,8 @@ import { EnrollmentEntity } from '../database/entities/enrollment.entity';
 import { ClassSessionEntity } from '../database/entities/class-session.entity';
 import { TeachingEntity } from '../database/entities/teaching.entity';
 import { AssistanceEntity } from '../database/entities/assistance.entity';
+import { ProfessorEntity } from '../database/entities/professor.entity';
+import { QrNonceEntity } from '../database/entities/qr-nonce.entity';
 
 /**
  * Implementación Postgres/TypeORM de DataRepository.
@@ -35,12 +37,83 @@ export class TypeOrmDataRepository {
     private readonly teachings: Repository<TeachingEntity>,
     @InjectRepository(AssistanceEntity)
     private readonly assistances: Repository<AssistanceEntity>,
+    @InjectRepository(ProfessorEntity)
+    private readonly professors: Repository<ProfessorEntity>,
+    @InjectRepository(QrNonceEntity)
+    private readonly qrNonces: Repository<QrNonceEntity>,
   ) {}
+
+  async upsertStudent(rut: string, name: string): Promise<void> {
+    await this.students.upsert({ rut, name }, ['rut']);
+  }
+
+  async upsertProfessor(rut: string, name: string): Promise<void> {
+    await this.professors.upsert({ rut, name }, ['rut']);
+  }
+
+  async upsertEnrollment(studentRut: string, subjectId: string): Promise<void> {
+    await this.enrollments.upsert({ studentRut, subjectId }, [
+      'studentRut',
+      'subjectId',
+    ]);
+  }
+
+  async upsertTeaching(professorRut: string, subjectId: string): Promise<void> {
+    await this.teachings.upsert({ professorRut, subjectId }, [
+      'professorRut',
+      'subjectId',
+    ]);
+  }
+
+  async upsertClass(classSession: ClassSession): Promise<void> {
+    await this.classes.upsert(classSession, ['id']);
+  }
+
+  countStudents(): Promise<number> {
+    return this.students.count();
+  }
+
+  countProfessors(): Promise<number> {
+    return this.professors.count();
+  }
+
+  countEnrollments(): Promise<number> {
+    return this.enrollments.count();
+  }
+
+  countTeachings(): Promise<number> {
+    return this.teachings.count();
+  }
+
+  countClasses(): Promise<number> {
+    return this.classes.count();
+  }
 
   async findStudent(
     rut: string,
   ): Promise<{ rut: string; name: string } | null> {
     return this.students.findOneBy({ rut });
+  }
+
+  isStudentEnrolled(studentRut: string, subjectId: string): Promise<boolean> {
+    return this.enrollments.existsBy({ studentRut, subjectId });
+  }
+
+  async consumeQrNonce(nonce: string): Promise<boolean> {
+    try {
+      await this.qrNonces.insert({ nonce, usedAt: new Date() });
+      return true;
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   async findAssistancesByStudentAndSubject(
@@ -81,6 +154,16 @@ export class TypeOrmDataRepository {
       return null;
     }
     classSession.registrationStatus = status;
+    return this.classes.save(classSession);
+  }
+
+  async updateClassEditingStatus(
+    classId: number,
+    status: 'ENABLED' | 'DISABLED',
+  ): Promise<ClassSession | null> {
+    const classSession = await this.classes.findOneBy({ id: classId });
+    if (!classSession) return null;
+    classSession.editingStatus = status;
     return this.classes.save(classSession);
   }
 

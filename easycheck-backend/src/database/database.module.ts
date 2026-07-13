@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { USE_DATABASE } from './use-database';
+import { readDatabaseEnvironment } from '../config/environment';
+import { InitialIntegratedSchema1760000000000 } from './migrations/1760000000000-InitialIntegratedSchema';
 
 /**
  * Conexión raíz a Postgres. Solo se activa cuando `DB_HOST` está definido
@@ -12,18 +14,14 @@ import { USE_DATABASE } from './use-database';
     ? [
         TypeOrmModule.forRoot({
           type: 'postgres',
-          host: process.env.DB_HOST,
-          port: parseInt(process.env.DB_PORT ?? '5432', 10),
-          username: process.env.DB_USER,
-          password: process.env.DB_PASSWORD,
-          database: process.env.DB_NAME,
+          ...readDatabaseEnvironment(),
           // Registra automáticamente las entities de los forFeature().
           autoLoadEntities: true,
-          // ⚠️ SOLO DESARROLLO/DEMO: synchronize:true regenera el esquema
-          // desde las entities en cada arranque. En producción esto puede
-          // DESTRUIR datos ante un cambio de modelo — ahí se reemplaza por
-          // migraciones de TypeORM (migrationsRun + archivos de migración).
-          synchronize: true,
+          // El esquema solo cambia mediante migraciones versionadas.
+          synchronize: false,
+          migrations: [InitialIntegratedSchema1760000000000],
+          migrationsRun: true,
+          migrationsTransactionMode: 'all',
         }),
       ]
     : [],

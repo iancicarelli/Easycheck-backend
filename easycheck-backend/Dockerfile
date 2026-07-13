@@ -25,7 +25,9 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+# El checkout puede venir de Windows (CRLF). Alpine interpreta el \r del
+# shebang como parte del ejecutable y falla con "no such file or directory".
+RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 EXPOSE 3000
 # Secuencia: esperar Postgres -> seed idempotente -> node dist/main.js
 ENTRYPOINT ["./docker-entrypoint.sh"]

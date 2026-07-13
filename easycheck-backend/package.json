@@ -20,7 +20,11 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:integration": "jest --config ./test/jest-integration.json",
     "test:bdd": "jest --config ./test/jest-bdd.json",
-    "test:tdd": "jest --config ./test/jest-tdd.json"
+    "test:tdd": "jest --config ./test/jest-tdd.json",
+    "test:performance:load": "k6 run test/performance/load-test.js",
+    "test:performance:stress": "k6 run test/performance/stress-test.js",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -- -d src/database/data-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -- -d src/database/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

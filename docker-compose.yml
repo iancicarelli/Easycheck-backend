@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ── Análisis estático (independiente del stack de la app) ─────────────────
   sonarqube:
@@ -60,6 +58,9 @@ services:
       DB_USER: ${POSTGRES_USER:-easycheck}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-easycheck_dev}
       DB_NAME: ${POSTGRES_DB:-easycheck}
+      QR_SIGNING_SECRET: ${QR_SIGNING_SECRET}
+      QR_TTL_SECONDS: ${QR_TTL_SECONDS:-300}
+      READER_API_KEY: ${READER_API_KEY}
       PORT: 3000
     ports:
       - "3000:3000"
