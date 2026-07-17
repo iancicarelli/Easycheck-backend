@@ -154,6 +154,15 @@ export class TypeOrmDataRepository {
     });
   }
 
+  async findClassesForProfessor(professorRut: string): Promise<ClassSession[]> {
+    const taught = await this.teachings.find({ where: { professorRut } });
+    if (taught.length === 0) return [];
+    return this.classes.find({
+      where: { subjectId: In(taught.map((t) => t.subjectId)) },
+      order: { id: 'ASC' },
+    });
+  }
+
   async updateClassRegistrationStatus(
     classId: number,
     status: 'ENABLED' | 'DISABLED',

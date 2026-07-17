@@ -37,6 +37,10 @@ export class SubjectRepository {
     return Promise.resolve(existing ?? synchronized);
   }
 
+  findAll(): Promise<Subject[]> {
+    return Promise.resolve([...this.subjects]);
+  }
+
   count(): Promise<number> {
     return Promise.resolve(this.subjects.length);
   }

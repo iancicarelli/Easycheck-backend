@@ -277,9 +277,9 @@ Resultados de referencia actuales:
 - TDD: 12 suites / 51 pruebas;
 - integración: 9 suites / 74 pruebas;
 - BDD: 9 suites / 19 escenarios;
-- E2E: 9 suites / 9 pruebas;
-- combinado: 40 suites / 154 pruebas;
-- cobertura: 94,15% statements, 81,83% branches y 94,24% lines.
+- E2E: 9 suites / 11 pruebas;
+- combinado: 40 suites / 156 pruebas;
+- cobertura: 93,37% statements, 80,69% branches y 93,47% lines.
 
 ## Limitaciones conocidas
 

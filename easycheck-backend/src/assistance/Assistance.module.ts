@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssistanceController } from './Assistance.controller';
 import { AssistanceService } from './Assistance.service';
@@ -20,7 +20,7 @@ import { ReaderGuard } from './reader.guard';
 // TypeORM; sin él (tests/local) sigue siendo el store in-memory de siempre.
 @Module({
   imports: [
-    UsersModule,
+    forwardRef(() => UsersModule),
     ...(USE_DATABASE
       ? [
           TypeOrmModule.forFeature([

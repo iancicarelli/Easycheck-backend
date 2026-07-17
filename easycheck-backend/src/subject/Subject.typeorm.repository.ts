@@ -38,6 +38,10 @@ export class TypeOrmSubjectRepository {
     );
   }
 
+  findAll(): Promise<Subject[]> {
+    return this.subjects.find();
+  }
+
   count(): Promise<number> {
     return this.subjects.count();
   }

@@ -12,6 +12,8 @@ import {
   UserAlreadyRegisteredError,
 } from '../../../src/users/domain/user-registration.errors';
 import { UserRole } from '../../../src/users/domain/user-role.enum';
+import { DataRepository } from '../../../src/assistance/Data.repository';
+import { SubjectRepository } from '../../../src/subject/Subject.repository';
 
 describe('CU-02 RegisterUserService', () => {
   const command = {
@@ -23,6 +25,8 @@ describe('CU-02 RegisterUserService', () => {
   };
   let identity: jest.Mocked<InstitutionalIdentityPort>;
   let users: jest.Mocked<UsersRepositoryPort>;
+  let data: DataRepository;
+  let subjects: SubjectRepository;
   let service: RegisterUserService;
 
   beforeEach(() => {
@@ -47,7 +51,9 @@ describe('CU-02 RegisterUserService', () => {
         createdAt: new Date(),
       }),
     };
-    service = new RegisterUserService(identity, users);
+    data = new DataRepository();
+    subjects = new SubjectRepository();
+    service = new RegisterUserService(identity, users, data, subjects);
   });
 
   it('registra una cuenta institucional activa', async () => {
@@ -56,6 +62,32 @@ describe('CU-02 RegisterUserService', () => {
       role: UserRole.ESTUDIANTE,
       status: 'ACTIVE',
     });
+  });
+
+  it('inscribe al estudiante en todas las asignaturas existentes', async () => {
+    await subjects.save({ code: 'ICC-101', name: 'Intro', career: 'ICC' });
+    await subjects.save({ code: 'ICC-202', name: 'Datos', career: 'ICC' });
+
+    await service.execute(command);
+
+    expect(await data.findStudent(command.rut)).not.toBeNull();
+    expect(await data.isStudentEnrolled(command.rut, 'ICC-101')).toBe(true);
+    expect(await data.isStudentEnrolled(command.rut, 'ICC-202')).toBe(true);
+    expect(await data.countEnrollments()).toBe(2);
+  });
+
+  it('no inscribe asignaturas cuando el rol no es estudiante', async () => {
+    identity.validateInstitutionalUser.mockResolvedValue({
+      rut: command.rut,
+      institutionalEmail: command.institutionalEmail,
+      fullName: command.fullName,
+      role: UserRole.PROFESOR,
+    });
+    await subjects.save({ code: 'ICC-101', name: 'Intro', career: 'ICC' });
+
+    await service.execute({ ...command, role: UserRole.PROFESOR });
+
+    expect(await data.countEnrollments()).toBe(0);
   });
 
   it('rechaza un RUT vacio', async () => {

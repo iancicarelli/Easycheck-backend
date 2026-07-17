@@ -200,6 +200,17 @@ export class DataRepository {
     );
   }
 
+  findClassesForProfessor(professorRut: string): Promise<ClassSession[]> {
+    const subjectIds = new Set(
+      this.teachings
+        .filter((t) => t.professorRut === professorRut)
+        .map((t) => t.subjectId),
+    );
+    return Promise.resolve(
+      this.classes.filter((c) => subjectIds.has(c.subjectId)),
+    );
+  }
+
   updateClassRegistrationStatus(
     classId: number,
     status: 'ENABLED' | 'DISABLED',

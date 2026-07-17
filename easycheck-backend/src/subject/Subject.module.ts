@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SubjectController } from './Subject.controller';
 import { SubjectService } from './Subject.service';
@@ -10,7 +10,7 @@ import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    UsersModule,
+    forwardRef(() => UsersModule),
     ...(USE_DATABASE ? [TypeOrmModule.forFeature([SubjectEntity])] : []),
   ],
   controllers: [SubjectController],

@@ -227,6 +227,18 @@ export class AssistanceController {
     }
   }
 
+  // GET /api/v1/professors/me/classes — clases que dicta el profesor del token,
+  // con sus estados de registro/edición. Apoya CU-07/CU-08: el panel lista los
+  // ids en vez de pedir que se escriban a mano.
+  @Get('professors/me/classes')
+  @AllowedRoles('profesor')
+  @UseGuards(TokenRolesGuard)
+  async getCurrentProfessorClasses(@Req() request: TokenAuthenticatedRequest) {
+    return await this.assistanceService.getCurrentProfessorClasses(
+      request.user!.rut,
+    );
+  }
+
   // GET /api/v1/professors/:rut/subjects/:code/assistance
   // CU-05: el profesor se obtiene del token, no de un parÃ¡metro del cliente.
   @Get('professors/me/subjects/:code/attendance')

@@ -69,6 +69,14 @@ export interface StudentClassSessionDto {
   registrationStatus: 'ENABLED' | 'DISABLED';
 }
 
+export interface ProfessorClassSessionDto {
+  classId: number;
+  subjectId: string;
+  date: Date;
+  registrationStatus: 'ENABLED' | 'DISABLED';
+  editingStatus: 'ENABLED' | 'DISABLED';
+}
+
 export interface CurrentStudentAttendanceDto {
   studentRut: string;
   subjectId: string;
@@ -174,13 +182,28 @@ export class AssistanceService {
     const student = await this.dataRepository.findStudent(studentRut);
     if (!student) throw new StudentNotFoundException(studentRut);
 
-    const classes =
-      await this.dataRepository.findClassesForStudent(studentRut);
+    const classes = await this.dataRepository.findClassesForStudent(studentRut);
     return classes.map((c) => ({
       classId: c.id,
       subjectId: c.subjectId,
       date: c.date,
       registrationStatus: c.registrationStatus,
+    }));
+  }
+
+  // CU-07/CU-08 (apoyo): clases que dicta el profesor con sus estados, para que
+  // el panel liste los ids en vez de exigir escribirlos a mano.
+  async getCurrentProfessorClasses(
+    professorRut: string,
+  ): Promise<ProfessorClassSessionDto[]> {
+    const classes =
+      await this.dataRepository.findClassesForProfessor(professorRut);
+    return classes.map((c) => ({
+      classId: c.id,
+      subjectId: c.subjectId,
+      date: c.date,
+      registrationStatus: c.registrationStatus,
+      editingStatus: c.editingStatus ?? 'DISABLED',
     }));
   }
 

@@ -1,6 +1,8 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RegisterUserService } from './application/register-user.service';
+import { AssistanceModule } from '../assistance/Assistance.module';
+import { SubjectModule } from '../subject/Subject.module';
 import {
   INSTITUTIONAL_IDENTITY_PORT,
   USERS_REPOSITORY_PORT,
@@ -19,7 +21,11 @@ import { TokenRolesGuard } from '../auth/application/token-roles.guard';
 // El puerto de identidad institucional sigue in-memory en ambos modos: es el
 // stub del Intranet UFRO (sistema externo), no una tabla propia.
 @Module({
-  imports: USE_DATABASE ? [TypeOrmModule.forFeature([UserTypeOrmEntity])] : [],
+  imports: [
+    forwardRef(() => AssistanceModule),
+    forwardRef(() => SubjectModule),
+    ...(USE_DATABASE ? [TypeOrmModule.forFeature([UserTypeOrmEntity])] : []),
+  ],
   controllers: [UsersController],
   providers: [
     RegisterUserService,

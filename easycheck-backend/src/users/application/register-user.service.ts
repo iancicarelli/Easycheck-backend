@@ -18,6 +18,8 @@ import type {
   UsersRepositoryPort,
 } from './user-registration.ports';
 import { RegisterUserDto } from './register-user.dto';
+import { DataRepository } from '../../assistance/Data.repository';
+import { SubjectRepository } from '../../subject/Subject.repository';
 
 @Injectable()
 export class RegisterUserService {
@@ -26,6 +28,8 @@ export class RegisterUserService {
     private readonly institutionalIdentity: InstitutionalIdentityPort,
     @Inject(USERS_REPOSITORY_PORT)
     private readonly usersRepository: UsersRepositoryPort,
+    private readonly data: DataRepository,
+    private readonly subjects: SubjectRepository,
   ) {}
 
   async execute(command: RegisterUserDto): Promise<User> {
@@ -67,12 +71,33 @@ export class RegisterUserService {
       throw new UserAlreadyRegisteredError(command.rut);
     }
 
-    return this.usersRepository.save({
+    const user = await this.usersRepository.save({
       rut: institutionalUser.rut,
       institutionalEmail: institutionalUser.institutionalEmail,
       fullName: command.fullName || institutionalUser.fullName,
       role: command.role,
       status: 'ACTIVE',
     });
+
+    // Un estudiante recién registrado queda inscrito en TODAS las asignaturas
+    // existentes, para que sirva de inmediato como caso de prueba (asistencia,
+    // QR, etc.). La inscripción "real" sigue viniendo del sync de Intranet;
+    // esto es una comodidad para pruebas/demo.
+    if (command.role === UserRole.ESTUDIANTE) {
+      await this.enrollStudentInAllSubjects(user.rut, user.fullName);
+    }
+
+    return user;
+  }
+
+  private async enrollStudentInAllSubjects(
+    rut: string,
+    fullName: string,
+  ): Promise<void> {
+    await this.data.upsertStudent(rut, fullName);
+    const subjects = await this.subjects.findAll();
+    for (const subject of subjects) {
+      await this.data.upsertEnrollment(rut, subject.code);
+    }
   }
 }
